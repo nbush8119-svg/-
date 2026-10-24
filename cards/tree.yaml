@@ -28,12 +28,22 @@ cards:
     script: cards/02-哲学.md
     episode: episodes/02-philosophy
 
-  # ---- 已规划的下一批（docs/series-plan.md）----
-  - {publish_no: "03", code: A1,   title: 费曼学习法,     parent: A,  status: planned}
-  - {publish_no: "04", code: C3,   title: 多巴胺与注意力, parent: C,  status: planned}
-  - {publish_no: "05", code: A3,   title: 概率思维,       parent: A,  status: planned}
-  - {publish_no: "06", code: A3.1, title: 期望值,         parent: A3, status: planned}
-  - {publish_no: "07", code: E2,   title: 金钱,           parent: E,  status: planned, links: [A3.1]}
-  - {publish_no: "08", code: D1,   title: 沟通,           parent: D,  status: planned}
-  - {publish_no: "09", code: B3,   title: 复利,           parent: B,  status: planned, links: [C4, E2]}
-  - {publish_no: "10", code: C4,   title: 习惯,           parent: C,  status: planned, links: [B3]}
+  - publish_no: "03"
+    code: B7.1
+    title: Token 词元
+    one_liner: Token，就是 AI 眼里的一个字。
+    parent: B7
+    links: [E7]
+    status: in_production
+    script: cards/03-Token词元.md
+    episode: episodes/03-token
+
+  # ---- 已规划的下一批（docs/series-plan.md；03 被 Token 占用后，以下发布号顺延一位）----
+  - {publish_no: "04", code: A1,   title: 费曼学习法,     parent: A,  status: planned}
+  - {publish_no: "05", code: C3,   title: 多巴胺与注意力, parent: C,  status: planned}
+  - {publish_no: "06", code: A3,   title: 概率思维,       parent: A,  status: planned}
+  - {publish_no: "07", code: A3.1, title: 期望值,         parent: A3, status: planned}
+  - {publish_no: "08", code: E2,   title: 金钱,           parent: E,  status: planned, links: [A3.1]}
+  - {publish_no: "09", code: D1,   title: 沟通,           parent: D,  status: planned}
+  - {publish_no: "10", code: B3,   title: 复利,           parent: B,  status: planned, links: [C4, E2]}
+  - {publish_no: "11", code: C4,   title: 习惯,           parent: C,  status: planned, links: [B3]}

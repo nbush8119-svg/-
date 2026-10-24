@@ -1,0 +1,367 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+@font-face{font-family:"Noto Sans CJK SC";font-weight:500;src:url(fonts/NotoSansCJKsc-Medium.otf)}
+@font-face{font-family:"Noto Sans CJK SC";font-weight:700;src:url(fonts/NotoSansCJKsc-Bold.otf)}
+@font-face{font-family:"Noto Sans CJK SC";font-weight:900;src:url(fonts/NotoSansCJKsc-Black.otf)}
+@font-face{font-family:"Noto Serif CJK SC";font-weight:100 900;src:url(fonts/NotoSerifCJKsc-Black.otf)}
+html,body{margin:0;background:#0E1014}canvas{display:block}
+</style></head>
+<body><canvas id="c" width="1080" height="1920"></canvas>
+<script src="timings.js"></script>
+<script>
+// 费曼学习法卡片 03 · Token 词元（B7.1）—— 沿用卡片01/02的画面语法与配色；时间轴全部来自 timings.js（配音实测）
+const C=document.getElementById('c'),X=C.getContext('2d');
+const PAPER='#0E1014',CARD='#161A20',INK='#ECE5D8',RED='#CDAA6B',MUTE='#857F74',SOFT='#2B3039';
+const SANS='"Noto Sans CJK SC"',SERIF='"Noto Serif CJK SC"';
+// ---- timeline ----
+const TM={};for(const r of window.TIMINGS)TM[r.id]=r;
+const S=id=>TM[id].start,E=id=>TM[id].end;
+// time where the n-th occurrence of ch inside line id is spoken (char-proportional)
+function at(id,ch,n=1){const r=TM[id],s=r.text;let i=-1;for(let k=0;k<n;k++)i=s.indexOf(ch,i+1);if(i<0)return r.end;
+ return r.start+(r.end-r.start)*(i+1)/s.length;}
+const A={end:S('L21')};
+window.DUR=E('L21')+4.6;
+// subtitles: one cue per sentence, wrapped to ≤2 lines at a punctuation mark near the middle
+function wrap(s){const n=s.length;if(n<=15)return s;const k=n>30?3:2;const P0=[];for(let i=3;i<n-3;i++)if('，。？：；、'.includes(s[i]))P0.push(i+1);
+ const lines=b=>{const c=[0,...b,n];return Math.max(...c.slice(1).map((v,i)=>v-c[i]));};let best=null;
+ if(k===2){for(const a of P0){const m=lines([a]);if(!best||m<best[0])best=[m,[a]];}}
+ else{for(const a of P0)for(const b of P0)if(b>a){const m=lines([a,b]);if(!best||m<best[0])best=[m,[a,b]];}}
+ if(!best||best[0]>20){const all=[];for(let i=4;i<n-3;i++)all.push(i);const keep=best;best=null;
+  for(const x of all)for(const y of all)if(y>x+3){const m=lines([x,y]);const pen=(P0.includes(x)?0:2)+(P0.includes(y)?0:2);if(!best||m+pen<best[0])best=[m+pen,[x,y]];}if(!best)best=keep;}
+ if(!best)best=[0,[Math.ceil(n/2)]];const c=[0,...best[1],n];return c.slice(1).map((v,i)=>s.slice(c[i],v)).join('\n');}
+const CUES=window.TIMINGS.map((r,i,a)=>[r.start-0.05,i+1<a.length?Math.min(a[i+1].start-0.05,r.end+0.9):r.end+1.8,wrap(r.text)]);
+window.CUES=CUES;
+const KEY=['费曼学习法','Token','词元','一串数字','编号','字母','一整块','一个字'];
+window.EV=[];const ev=(t,type)=>window.EV.push({t:+t.toFixed(3),type});
+
+const cl=(v,a=0,b=1)=>Math.max(a,Math.min(b,v));
+const P=(t,a,b)=>cl((t-a)/(b-a));
+const eo=x=>1-Math.pow(1-x,3);
+const eio=x=>x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2;
+const lerp=(a,b,k)=>a+(b-a)*k;
+function spring(x){if(x<=0)return 0;const w=13,z=0.78,wd=w*Math.sqrt(1-z*z);
+ return 1-Math.exp(-z*w*x)*(Math.cos(wd*x)+z*w/wd*Math.sin(wd*x));}
+function bez(p0,p1,p2,p3,n=64){const r=[];for(let i=0;i<=n;i++){const u=i/n,v=1-u;
+ r.push([v*v*v*p0[0]+3*v*v*u*p1[0]+3*v*u*u*p2[0]+u*u*u*p3[0],v*v*v*p0[1]+3*v*v*u*p1[1]+3*v*u*u*p2[1]+u*u*u*p3[1]]);}return r;}
+function lens(pts){const L=[0];for(let i=1;i<pts.length;i++)L.push(L[i-1]+Math.hypot(pts[i][0]-pts[i-1][0],pts[i][1]-pts[i-1][1]));return L;}
+function stroke(pts,p,w,col,dash,alpha=1){if(p<=0)return;const L=lens(pts),T=L[L.length-1]*cl(p);
+ X.save();X.globalAlpha*=alpha;X.beginPath();X.moveTo(pts[0][0],pts[0][1]);
+ for(let i=1;i<pts.length;i++){if(L[i]<=T)X.lineTo(pts[i][0],pts[i][1]);else{const k=(T-L[i-1])/(L[i]-L[i-1]);
+ X.lineTo(lerp(pts[i-1][0],pts[i][0],k),lerp(pts[i-1][1],pts[i][1],k));break;}}
+ X.lineWidth=w;X.strokeStyle=col;X.lineCap='round';X.lineJoin='round';X.setLineDash(dash||[]);X.stroke();X.restore();}
+function ptAt(pts,p){const L=lens(pts),T=L[L.length-1]*cl(p);for(let i=1;i<pts.length;i++){if(L[i]>=T){const k=(T-L[i-1])/((L[i]-L[i-1])||1);
+ return [lerp(pts[i-1][0],pts[i][0],k),lerp(pts[i-1][1],pts[i][1],k),Math.atan2(pts[i][1]-pts[i-1][1],pts[i][0]-pts[i-1][0])];}}const n=pts.length-1;return [pts[n][0],pts[n][1],0];}
+function circ(cx,cy,r){const a=[];for(let i=0;i<=72;i++){const q=-Math.PI/2+i/72*Math.PI*2;a.push([cx+r*Math.cos(q),cy+r*Math.sin(q)]);}return a;}
+function text(s,x,y,size,col,font=SANS,align='center',weight=500,alpha=1){if(alpha<=0)return;X.save();X.globalAlpha*=alpha;
+ X.font=`${weight} ${size}px ${font}`;X.fillStyle=col;X.textAlign=align;X.textBaseline='alphabetic';X.fillText(s,x,y);X.restore();VIS.push(s);}
+let VIS=[];
+function mixed(segs,cx,y,size,font=SERIF,weight=700,alpha=1,dy=0){if(alpha<=0)return;X.save();X.globalAlpha*=alpha;
+ X.font=`${weight} ${size}px ${font}`;X.textBaseline='alphabetic';X.textAlign='left';
+ const W=segs.reduce((s,g)=>s+X.measureText(g[0]).width,0);let x=cx-W/2;
+ for(const g of segs){X.fillStyle=g[1];X.fillText(g[0],x,y+dy);x+=X.measureText(g[0]).width;}X.restore();
+ VIS.push(segs.map(g=>g[0]).join(''));}
+function env(t,a,b,din=0.35,dout=0.25){const i=eo(P(t,a,a+din)),o=eo(P(t,b-dout,b));return {a:i*(1-o),dy:(1-i)*26-o*20};}
+function arrowHead(x,y,ang,s,col){X.save();X.translate(x,y);X.rotate(ang);X.beginPath();X.moveTo(s,0);X.lineTo(-s*0.8,-s*0.75);X.lineTo(-s*0.35,0);X.lineTo(-s*0.8,s*0.75);X.closePath();X.fillStyle=col;X.fill();X.restore();}
+function tag(s,x,y,col,fill,size=32,alpha=1){if(alpha<=0)return;X.save();X.globalAlpha*=alpha;X.font=`700 ${size}px ${SANS}`;
+ const w=X.measureText(s).width+size*1.0,h=size*1.55;X.beginPath();X.roundRect(x-w/2,y-h/2,w,h,h/2);
+ if(fill){X.fillStyle=col;X.fill();}else{X.fillStyle=CARD;X.fill();X.lineWidth=3;X.strokeStyle=col;X.stroke();}
+ X.fillStyle=fill?CARD:col;X.textAlign='center';X.textBaseline='middle';X.fillText(s,x,y+2);X.restore();VIS.push(s);}
+function pin(x,y,s,col=RED){X.save();X.translate(x,y);X.scale(s,s);X.beginPath();X.moveTo(0,0);
+ X.bezierCurveTo(-30,-38,-34,-58,-34,-74);X.arc(0,-74,34,Math.PI,0);X.bezierCurveTo(34,-58,30,-38,0,0);X.fillStyle=col;X.fill();
+ X.beginPath();X.arc(0,-74,12,0,Math.PI*2);X.fillStyle=CARD;X.fill();X.restore();}
+
+// ================= 开场：按字收费？→ 切块 → Token =================
+// 一块「词元」积木：圆角块 + 文字，可选编号
+function blk(s,x,y,col,alpha=1,size=56,fill=CARD,w0=0){if(alpha<=0)return;X.save();X.globalAlpha*=alpha;X.font=`900 ${size}px ${SERIF}`;
+ const w=Math.max(w0,X.measureText(s).width+size*0.9),h=size*1.7;X.beginPath();X.roundRect(x-w/2,y-h/2,w,h,16);
+ X.fillStyle=fill;X.fill();X.lineWidth=4;X.strokeStyle=col;X.stroke();
+ X.fillStyle=fill===CARD?col:CARD;X.textAlign='center';X.textBaseline='middle';X.fillText(s,x,y+3);X.restore();VIS.push(s);return w;}
+function bubble(x,y,w,h,alpha,col=SOFT,tailLeft=true){if(alpha<=0)return;X.save();X.globalAlpha*=alpha;X.fillStyle=col;X.beginPath();X.roundRect(x-w/2,y-h/2,w,h,28);X.fill();
+ X.beginPath();const tx=tailLeft?x-w/2+60:x+w/2-60;X.moveTo(tx-16,y+h/2-4);X.lineTo(tx+(tailLeft?-34:34),y+h/2+30);X.lineTo(tx+20,y+h/2-4);X.fill();X.restore();}
+function hook(t){
+ const out=eio(P(t,E('L03')+0.1,S('L04')+0.35));if(out>=1)return;
+ X.save();X.globalAlpha=1-out;X.translate(0,-out*160);
+ // 聊天气泡
+ const b=eo(P(t,S('L01'),S('L01')+0.4));
+ bubble(500,560+(1-b)*30,720,150,b);
+ const sent='帮我写一首关于秋天的诗';
+ const cutT=S('L02')+0.3,cut=eio(P(t,cutT,cutT+0.9));
+ // L02 起，句子被切成块
+ const parts=['帮我','写','一首','关于','秋天','的','诗'];
+ if(cut<=0){text(sent,500,578,46,INK,SANS,'center',700,b);}
+ else{X.save();X.font=`700 46px ${SANS}`;const W=X.measureText(sent).width;let x=500-W/2;X.restore();
+  parts.forEach((p,i)=>{X.font=`700 46px ${SANS}`;const w=X.measureText(p).width,gap=cut*26,cx=x+w/2+(i-(parts.length-1)/2)*gap;
+   if(cut>0.5)blk(p,cx,572,i%2?INK:RED,cl((cut-0.5)*2),36);
+   text(p,cx,578,46,INK,SANS,'center',700,b*(1-cl((cut-0.5)*2)));x+=w;});
+  // 刀光
+  const k=P(t,cutT,cutT+0.7);if(k>0&&k<1){for(let i=1;i<parts.length;i++){X.save();X.globalAlpha=(1-k)*0.9;X.strokeStyle=RED;X.lineWidth=4;
+   X.beginPath();X.moveTo(160+i*100,500);X.lineTo(150+i*100,650);X.stroke();X.restore();}}}
+ // L01 按字收费？——划掉
+ const q=eo(P(t,S('L01')+0.6,S('L01')+1.0));
+ if(q>0){X.save();X.translate(500,860);tag('¥ / 每个字？',0,0,INK,false,52,q*(1-eio(P(t,S('L02')+0.2,S('L02')+0.6))));X.restore();
+  const no=eo(P(t,at('L01','？')+0.1,at('L01','？')+0.4));if(no>0)stroke([[320,880],[680,840]],no,10,RED,null,1-eio(P(t,S('L02')+0.2,S('L02')+0.6)));}
+ // L02 Token 计价
+ const tk=spring(t-at('L02','：'));
+ if(tk>0){X.save();X.translate(500,860);X.scale(cl(tk,0,1.2),cl(tk,0,1.2));tag('¥ / 每个 Token',0,0,RED,true,52,cl(tk*2));X.restore();}
+ // L03 大字 Token？
+ const big=eo(P(t,S('L03')+0.2,S('L03')+0.7));
+ if(big>0){text('Token',500,1110+(1-big)*30,170,RED,SERIF,'center',900,big);
+  text('词元',500,1210+(1-big)*30,64,INK,SERIF,'center',700,big);
+  const qm=eo(P(t,at('L03','，',2),at('L03','，',2)+0.4));text('到底是什么？',500,700,56,MUTE,SERIF,'center',700,qm*(1-tk*0));}
+ X.restore();
+}
+// ================= 方法标题 =================
+function title(t){
+ const a=S('L04'),i=eo(P(t,a,a+0.6)),o=eio(P(t,S('L05')-0.25,S('L05')+0.35));if(i<=0||o>=1)return;
+ X.save();X.globalAlpha=i*(1-o);
+ text('今天的方法',500,620+(1-i)*30,44,MUTE,SANS,'center',500);
+ text('费曼学习法',500,790+(1-i)*30,130,INK,SERIF,'center',900);
+ const f=eo(P(t,at('L04','，')+0.2,at('L04','，')+0.7));mixed([['四步，把',RED],['Token',RED],['讲透',RED]],500,930+(1-f)*24,56,SERIF,700,f);
+ X.restore();
+}
+// ================= 四步进度条 =================
+const STEPS=['一 选概念','二 讲给孩子','三 找卡点','四 简化'];
+function tracker(t){
+ const a0=at('L04','，')+0.1,enter=[0,0.35,0.7,1.05].map(d=>a0+d);
+ let act=-1;if(t>=S('L05'))act=0;if(t>=S('L06'))act=1;if(t>=S('L13'))act=2;if(t>=S('L17'))act=3;if(t>=A.end)act=4;
+ const xs=[175,385,595,805],y=292;
+ for(let i=0;i<4;i++){const e=eo(P(t,enter[i],enter[i]+0.35))*(1-eio(P(t,A.end+0.3,A.end+0.9)));if(e<=0)continue;
+  X.save();X.globalAlpha=e;X.translate(0,(1-e)*-30);
+  const w=198,h=62;X.beginPath();X.roundRect(xs[i]-w/2,y-h/2,w,h,h/2);
+  const done=i<act,on=i===act;
+  if(on){X.fillStyle=RED;X.fill();}else{X.fillStyle=PAPER;X.fill();X.lineWidth=3;X.strokeStyle=done?INK:SOFT;X.stroke();}
+  X.font=`700 28px ${SANS}`;X.textAlign='center';X.textBaseline='middle';X.fillStyle=on?CARD:(done?INK:MUTE);
+  X.fillText(done?'✓'+STEPS[i].slice(1):STEPS[i],xs[i],y+2);X.restore();VIS.push(STEPS[i]);}
+}
+// ================= 费曼卡片 =================
+function card(t){
+ const s2=S('L05'),ci=eio(P(t,s2-0.15,s2+0.75)),co=eio(P(t,A.end,A.end+0.7));if(ci<=0||co>=1)return;
+ const x0=lerp(320,130,ci),x1=lerp(680,870,ci),y0=lerp(720,380,ci)-co*220,y1=lerp(900,1205,ci)-co*220;
+ X.save();X.globalAlpha=1-co;
+ const z=1+0.035*eio(P(t,s2+1,S('L17')))-0.02*eio(P(t,S('L17'),S('L19')));X.translate(500,800);X.scale(z,z);X.translate(-500,-800);
+ X.fillStyle='rgba(0,0,0,0.45)';X.beginPath();X.roundRect(x0+10,y0+14,x1-x0,y1-y0,22);X.fill();
+ X.fillStyle=CARD;X.beginPath();X.roundRect(x0,y0,x1-x0,y1-y0,22);X.fill();X.lineWidth=3;X.strokeStyle=SOFT;X.stroke();
+ if(ci<0.98){X.restore();return;}
+ X.translate(0,-co*220);
+ text('费曼卡片 No.03 · B7.1',170,440,30,MUTE,SANS,'left',500);
+ text('作者自我认知',830,440,30,MUTE,SANS,'right',500);
+ X.strokeStyle='#1E232B';X.lineWidth=2;for(let y=560;y<1190;y+=70){X.beginPath();X.moveTo(160,y);X.lineTo(840,y);X.stroke();}
+ text('概念',170,512,36,INK,SANS,'left',700);
+ X.strokeStyle=INK;X.lineWidth=3;X.beginPath();X.moveTo(160,535);X.lineTo(840,535);X.stroke();
+ const wt=at('L05','：'),w=P(t,wt,wt+1.1);
+ if(w>0){X.save();X.beginPath();X.rect(250,440,eo(w)*420,110);X.clip();mixed([['Token ',RED],['词元',INK]],445,522,70,SERIF,900);X.restore();}
+ const hint=env(t,s2+0.6,wt);if(hint.a>0)text('↑ 写在最上方',520,512+hint.dy,34,MUTE,SANS,'left',500,hint.a);
+ body(t);
+ X.restore();
+}
+function label(t,a,b,segs,y=618,size=48){const e=env(t,a,b);if(e.a>0)mixed(segs,500,y,size,SERIF,700,e.a,e.dy);}
+function person(x,y,s,col,alpha=1,arm=0){X.save();X.globalAlpha*=alpha;X.translate(x,y);X.scale(s,s);X.fillStyle=col;
+ X.beginPath();X.arc(0,-70,48,0,Math.PI*2);X.fill();X.beginPath();X.roundRect(-60,-10,120,150,40);X.fill();
+ X.strokeStyle=col;X.lineWidth=18;X.lineCap='round';
+ X.beginPath();X.moveTo(-52,20);X.lineTo(-100,lerp(110,-30,arm));X.moveTo(52,20);X.lineTo(100,lerp(110,-30,arm));X.stroke();
+ X.beginPath();X.moveTo(-28,130);X.lineTo(-36,230);X.moveTo(28,130);X.lineTo(36,230);X.stroke();X.restore();}
+function cross(x,y,s,k,col=RED){if(k<=0)return;stroke([[x-s,y-s],[x+s,y+s]],eo(cl(k*2)),8,col);stroke([[x+s,y-s],[x-s,y+s]],eo(cl(k*2-1)),8,col);}
+function check(x,y,s,k){stroke([[x-s,y],[x-s*0.3,y+s*0.7],[x+s,y-s*0.8]],k,9,RED);}
+// 米袋
+function bag(x,y,s,alpha){if(alpha<=0)return;X.save();X.globalAlpha*=alpha;X.translate(x,y);X.scale(s,s);
+ X.beginPath();X.moveTo(-60,-70);X.quadraticCurveTo(-80,60,-55,90);X.lineTo(55,90);X.quadraticCurveTo(80,60,60,-70);X.closePath();X.fillStyle=SOFT;X.fill();X.lineWidth=4;X.strokeStyle=INK;X.stroke();
+ X.beginPath();X.moveTo(-60,-70);X.lineTo(-40,-95);X.lineTo(40,-95);X.lineTo(60,-70);X.stroke();X.strokeStyle=RED;X.lineWidth=6;X.beginPath();X.moveTo(-50,-78);X.lineTo(50,-78);X.stroke();
+ X.fillStyle=INK;X.font=`900 46px ${SERIF}`;X.textAlign='center';X.textBaseline='middle';X.fillText('米',0,18);X.restore();}
+const SENT=['我','爱吃','火锅'],IDS=['2769','15931','8848'];
+function body(t){
+ // 第一步
+ const s1=env(t,S('L05')+0.9,S('L06'));if(s1.a>0)text('一张纸，只写一个概念',500,860+s1.dy,44,MUTE,SERIF,'center',700,s1.a);
+ // 第二步：孩子 + 划掉术语
+ const s2=env(t,S('L06')+0.2,S('L07')+0.1);
+ if(s2.a>0){X.save();X.globalAlpha*=s2.a;X.translate(0,s2.dy);
+  person(330,880,1,INK);tag('十二岁',330,1150,RED,true,32,1);
+  const t0=at('L06','，');
+  ['分词器','嵌入向量','自回归'].forEach((wd,i)=>{const yy=760+i*130,e=eo(P(t,t0+i*0.25,t0+0.4+i*0.25));if(e>0){tag(wd,640,yy,MUTE,false,36,e);
+   const sk=eo(P(t,at('L06','用')+0.1+i*0.25,at('L06','用')+0.35+i*0.25));if(sk>0)stroke([[555,yy+6],[725,yy-6]],sk,6,RED);}});
+  X.restore();}
+ label(t,S('L06')+0.2,S('L07')+0.1,[['不许用',INK],['术语',RED]]);
+ // L07 不是逐字，也不是整句
+ const r7=env(t,S('L07'),S('L08')+0.05);
+ if(r7.a>0){X.save();X.globalAlpha*=r7.a;X.translate(0,r7.dy);
+  label(t,S('L07'),S('L08')+0.05,[['AI 怎么读一句话？',INK]]);
+  const a1=eo(P(t,S('L07')+0.2,S('L07')+0.6)),a2=eo(P(t,at('L07','，')+0.1,at('L07','，')+0.5));
+  ['我','爱','吃','火','锅'].forEach((c,i)=>blk(c,260+i*120,790,MUTE,a1,40));
+  cross(500,790,70,P(t,at('L07','读',1)+0.2,at('L07','，')),RED);
+  text('一个字一个字？',500,900,36,MUTE,SANS,'center',500,a1);
+  blk('我爱吃火锅',500,1020,MUTE,a2,48);
+  cross(500,1020,70,P(t,at('L07','吞')-0.4,at('L07','吞')+0.1),RED);
+  text('一整句？',500,1130,36,MUTE,SANS,'center',500,a2);
+  X.restore();}
+ // L08–L10 切块 → 编号
+ const r8=env(t,S('L08'),S('L11')+0.05);
+ if(r8.a>0){X.save();X.globalAlpha*=r8.a;X.translate(0,r8.dy);
+  const split=eio(P(t,at('L09','：')-0.2,at('L09','：')+0.6)),showS=eo(P(t,S('L08')+0.1,S('L08')+0.5));
+  const xs=[lerp(380,250,split),lerp(470,470,split),lerp(590,720,split)],cols=[INK,RED,INK];
+  // 一块块（句子 → 三块）
+  if(split<=0){blk('我爱吃火锅',500,790,INK,showS,56);
+   // L08 刀
+   const kn=P(t,at('L08','。')-0.6,at('L08','。'));if(kn>0&&kn<1){stroke([[438,700],[432,880]],eo(kn),5,RED,null,1-kn*0.5);stroke([[548,700],[542,880]],eo(cl(kn*1.5-0.3)),5,RED,null,1-kn*0.5);}}
+  else SENT.forEach((s,i)=>blk(s,xs[i],790,cols[i],1,56));
+  if(t<S('L09'))label(t,S('L08')+0.2,S('L09'),[['每一块 ＝ ',INK],['一个 Token',RED]],1000,52);
+  // L10 编号
+  const nm=P(t,S('L10')+0.1,at('L10','。'));
+  if(nm>0){SENT.forEach((s,i)=>{const e=eo(cl(nm*3-i));if(e<=0)return;stroke([[xs[i],850],[xs[i],905]],e,4,MUTE);
+   text(IDS[i],xs[i],970+(1-e)*-20,50,RED,SANS,'center',900,e);});
+   text('（编号仅为示意）',500,1040,26,MUTE,SANS,'center',500,eo(P(t,at('L10','。'),at('L10','。')+0.3)));
+   const all=eo(P(t,at('L10','。')+0.1,at('L10','。')+0.5));
+   if(all>0)mixed([['AI 看到的：',MUTE],[IDS.join(' · '),RED]],500,1130,44,SANS,700,all);}
+  X.restore();}
+ label(t,S('L09'),S('L10'),[['我爱吃火锅 → ',MUTE],['三块',RED]]);
+ label(t,S('L10'),S('L11')+0.05,[['每块换成',INK],['一个编号',RED]]);
+ // L11 一块一块往外蹦
+ const r11=env(t,S('L11'),S('L12')+0.05);
+ if(r11.a>0){X.save();X.globalAlpha*=r11.a;X.translate(0,r11.dy);
+  label(t,S('L11'),S('L12')+0.05,[['回答，也是',INK],['一块一块猜',RED]]);
+  bubble(620,740,420,100,1,SOFT,false);text('晚饭吃啥？',620,756,40,INK,SANS,'center',700);
+  const ans=['火锅','怎么样','？'],t1=at('L11','：'),t2=E('L11');let x=200;
+  ans.forEach((s,i)=>{const ti=lerp(t1-0.4,t2-0.5,i/(ans.length-1)),e=spring(t-ti);X.font=`900 46px ${SERIF}`;const w=X.measureText(s).width+46*0.9;
+   if(e>0){X.save();X.translate(x+w/2,920);X.scale(cl(e,0,1.15),cl(e,0,1.15));blk(s,0,0,i===0?RED:INK,cl(e*2),46);X.restore();}
+   x+=w+18;});
+  const nx=eo(P(t,t1,t1+0.3));if(nx>0){const blink=(Math.floor(t*2.5)%2)?1:0.25;text('猜下一块 →',500,1080,38,RED,SANS,'center',700,nx*blink);}
+  X.restore();}
+ // L12 收费 / 记忆
+ const r12=env(t,S('L12'),S('L13')+0.05);
+ if(r12.a>0){X.save();X.globalAlpha*=r12.a;X.translate(0,r12.dy);
+  const k1=spring(t-at('L12','钱')),k2=spring(t-at('L12','；'));
+  if(k1>0){X.save();X.translate(500,780);X.scale(cl(k1,0,1.1),cl(k1,0,1.1));tag('收多少钱 ＝ Token 数 × 单价',0,0,INK,false,40,cl(k1*2));X.restore();}
+  if(k2>0){X.save();X.translate(500,920);X.scale(cl(k2,0,1.1),cl(k2,0,1.1));tag('能记多长 ＝ Token 上限',0,0,RED,false,40,cl(k2*2));X.restore();}
+  // Token 计数条
+  const fill=eo(P(t,at('L12','；'),E('L12')));
+  X.fillStyle=SOFT;X.beginPath();X.roundRect(200,1040,600,26,13);X.fill();X.fillStyle=RED;X.beginPath();X.roundRect(200,1040,Math.max(26,600*fill),26,13);X.fill();
+  text('对话越长，用掉的 Token 越多',500,1120,32,MUTE,SANS,'center',500,cl(fill*3));
+  X.restore();}
+ label(t,S('L12'),S('L13')+0.05,[['收费、记忆，',INK],['都按 Token 算',RED]]);
+ // 第三步：卡点
+ const s13=env(t,S('L13'),S('L14'));
+ if(s13.a>0){label(t,S('L13'),S('L14'),[['卡住的地方',INK]]);
+  const k=spring(t-at('L13','：'));if(k>0){X.save();X.globalAlpha*=s13.a;X.translate(500,880);X.scale(k,k);
+   X.beginPath();X.arc(0,0,195,0,Math.PI*2);X.lineWidth=6;X.setLineDash([16,12]);X.strokeStyle=RED;X.stroke();X.restore();
+   text('AI 读字，',500,868,52,RED,SERIF,'center',900,s13.a*cl(k));text('跟我们一样？',500,944,52,RED,SERIF,'center',900,s13.a*cl(k));}}
+ // L14–L15 数字母
+ const r14=env(t,S('L14'),S('L16')+0.05);
+ if(r14.a>0){X.save();X.globalAlpha*=r14.a;X.translate(0,r14.dy);
+  const W='strawberry',wrap=eio(P(t,S('L15')+0.2,at('L15','。')));
+  const q=eo(P(t,at('L14','。')+0.05,at('L14','。')+0.4));
+  text('strawberry 里有几个 r？',500,700,44,INK,SANS,'center',700,q);
+  // 字母
+  const groups=[[0,3],[3,5],[5,10]],gx=[320,480,690];
+  if(wrap<1){for(let i=0;i<W.length;i++){const gi=groups.findIndex(g=>i>=g[0]&&i<g[1]);const lx=200+i*62,gxx=gx[gi]+(i-(groups[gi][0]+groups[gi][1]-1)/2)*44;
+   const xx=lerp(lx,gxx,wrap),isR=W[i]==='r';
+   X.save();X.globalAlpha*=1-wrap;X.font=`900 64px ${SANS}`;X.fillStyle=isR&&t<S('L15')?RED:INK;X.textAlign='center';X.fillText(W[i],xx,830);X.restore();}VIS.push(W);}
+  if(wrap>0){groups.forEach((g,i)=>blk(W.slice(g[0],g[1]),gx[i],810,i===1?RED:INK,wrap,54));
+   text('（切法仅为示意）',500,920,26,MUTE,SANS,'center',500,wrap);}
+  // AI 的答案
+  const an=spring(t-(at('L14','，',2)-0.2));
+  if(an>0&&t<S('L15')+0.3){X.save();X.globalAlpha*=cl(an*2)*(1-eio(P(t,S('L15'),S('L15')+0.3)));bubble(500,1010,360,100,1,SOFT,true);
+   text('AI：2 个',500,1026,44,INK,SANS,'center',700);X.restore();cross(720,1010,34,P(t,E('L14')-0.3,E('L14')+0.2));
+   text('（其实是 3 个）',500,1120,32,RED,SANS,'center',700,eo(P(t,E('L14'),E('L14')+0.3))*(1-eio(P(t,S('L15'),S('L15')+0.3))));}
+  const sw=eo(P(t,at('L15','。'),at('L15','。')+0.4));
+  if(sw>0)mixed([['它看见的是',INK],['一整块',RED]],500,1060,52,SERIF,900,sw);
+  X.restore();}
+ label(t,S('L14'),S('L15'),[['让它数',INK],['字母',RED]]);
+ label(t,S('L15'),S('L16')+0.05,[['不是笨，是',INK],['没看见字母',RED]]);
+ // L16 一袋一袋的米
+ const r16=env(t,S('L16'),S('L17')+0.05);
+ if(r16.a>0){X.save();X.globalAlpha*=r16.a;X.translate(0,r16.dy);
+  [0,1,2].forEach(i=>{const k=spring(t-(S('L16')+0.4+i*0.25));if(k>0)bag(300+i*200,830,cl(k,0,1.1),cl(k*2));});
+  const q=eo(P(t,at('L16','，',2),at('L16','，',2)+0.4));if(q>0){text('一共几粒？',500,1060,64,RED,SERIF,'center',900,q);}
+  X.restore();}
+ label(t,S('L16'),S('L17')+0.05,[['一袋一袋',INK],['≠',MUTE],['一粒一粒',RED]]);
+ // 第四步：一句话
+ const os=env(t,at('L17','：')-0.1,S('L18')+0.1,0.3,0.3);
+ label(t,S('L17'),at('L17','：'),[['简化成',INK],['一句话',RED]]);
+ if(os.a>0){const s=lerp(1.2,1,eo(P(t,at('L17','：'),at('L17','：')+0.3)));X.save();X.translate(500,800);X.scale(s,s);X.translate(-500,-800);
+  text('Token',500,760+os.dy,150,RED,SERIF,'center',900,os.a);
+  mixed([['就是 ',INK],['AI',RED],[' 眼里的',INK]],500,900,64,SERIF,900,os.a*eo(P(t,at('L17','，',2)-0.2,at('L17','，',2)+0.3)),os.dy);
+  mixed([['一个字',RED]],500,1010,80,SERIF,900,os.a*eo(P(t,at('L17','的'),at('L17','的')+0.4)),os.dy);X.restore();}
+ // L18 树枝：根 → B → B7 → B7.1（亮） → 下一张
+ const m=env(t,S('L18'),S('L19')+0.1);
+ if(m.a>0){X.save();X.globalAlpha*=m.a;
+  text('这张卡挂在树上的位置',500,640,40,MUTE,SERIF,'center',700);
+  const N=[['01 三观（根）',500,1150],['B 世界怎么运转',500,1040],['B7 科技与变化',500,930],['B7.1 Token',380,810],['AI 怎么猜下一个字？',650,810]];
+  const t0=S('L18')+0.2,tb=at('L18','：');
+  for(let i=0;i<4;i++){const ti=t0+i*0.35,e=eo(P(t,ti,ti+0.4));if(e<=0)continue;
+   if(i>0){stroke([[N[i-1][1],N[i-1][2]-40],[N[i][1],N[i][2]+40]],e,5,i===3?RED:INK);}
+   tag(N[i][0],N[i][1],N[i][2],i===3?RED:INK,i===3,i===3?36:32,e);}
+  const nx=eo(P(t,tb,tb+0.5));if(nx>0){X.save();X.globalAlpha*=nx;X.setLineDash([10,10]);X.strokeStyle=RED;X.lineWidth=4;X.beginPath();X.moveTo(500,890);X.lineTo(650,840);X.stroke();X.restore();
+   X.save();X.globalAlpha*=nx;X.font=`700 30px ${SANS}`;const w=X.measureText(N[4][0]).width+40;X.beginPath();X.roundRect(N[4][1]-w/2+60,N[4][2]-96,w,52,26);X.setLineDash([10,8]);X.lineWidth=3;X.strokeStyle=RED;X.stroke();
+   X.fillStyle=RED;X.textAlign='center';X.textBaseline='middle';X.fillText(N[4][0],N[4][1]+60,N[4][2]-69);X.restore();VIS.push(N[4][0]);
+   text('下一层',N[4][1]+60,N[4][2]-118,26,MUTE,SANS,'center',500,nx);}
+  X.restore();}
+ // L19–L20 今晚的小动作
+ const f=env(t,S('L19'),A.end+0.1);
+ if(f.a>0){X.save();X.globalAlpha*=f.a;X.translate(0,f.dy);
+  mixed([['今晚，让 AI ',INK],['数字母',RED]],500,650,56,SERIF,900,1);
+  text('打开你常用的 AI，问它：',500,740,36,MUTE,SANS,'center',500,1);
+  const b=spring(t-(at('L19','，')+0.2));if(b>0){X.save();X.globalAlpha*=cl(b*2);bubble(500,860,700,110,1,SOFT,false);
+   text('strawberry 里有几个 r？',500,876,44,INK,SANS,'center',700);X.restore();}
+  const q=eo(P(t,at('L19','，',2),at('L19','，',2)+0.4));text('看它会不会数错',500,1020,56,RED,SERIF,'center',900,q);
+  const cm=spring(t-S('L20'));if(cm>0){X.save();X.translate(500,1120);X.scale(cl(cm),cl(cm));X.beginPath();X.roundRect(-190,-40,380,80,40);X.fillStyle=SOFT;X.fill();
+   X.beginPath();X.moveTo(-120,36);X.lineTo(-150,64);X.lineTo(-90,38);X.fill();X.restore();text('评论区告诉我',500,1132,36,INK,SANS,'center',700,cl(cm*2));}
+  X.restore();}
+}
+// ================= 片尾 =================
+function endcard(t){
+ const e=(d)=>eo(P(t,A.end+0.5+d,A.end+1.0+d));
+ if(t<A.end+0.5)return;
+ const a=e(0),b=e(0.25),c=e(0.6),d=e(0.9);
+ const seed=(window.META&&window.META.music_seed)?' · 种子 '+window.META.music_seed:'';
+ text('费曼学习法卡片',500,600+(1-a)*30,92,INK,SERIF,'center',900,a);
+ text('03 · Token 词元',500,700+(1-b)*30,60,RED,SERIF,'center',700,b);
+ text('B7.1 · 上级 B7 科技与变化',500,752+(1-b)*30,28,MUTE,SANS,'center',500,b);
+ if(b>0){X.save();X.globalAlpha=b;X.fillStyle=SOFT;X.fillRect(300,785,400,3);X.restore();}
+ text('出处：作者自我认知（Shaomanman）',500,870+(1-c)*24,38,INK,SANS,'center',500,c);
+ text('许可：CC BY 4.0（署名 4.0 国际）',500,935+(1-c)*24,38,INK,SANS,'center',500,c);
+ text('creativecommons.org/licenses/by/4.0',500,992+(1-c)*24,28,MUTE,SANS,'center',500,c);
+ text('配乐：ACE-Step 1.5 本地生成（MIT）'+seed,500,1050+(1-c)*24,26,MUTE,SANS,'center',500,c);
+ text('配音：Qwen3-TTS 本地生成（参考 ElevenLabs Brian 音色）',500,1090+(1-c)*24,26,MUTE,SANS,'center',500,c);
+ text('下一张卡片见',500,1190+(1-d)*24,58,RED,SERIF,'center',900,d);
+}
+// ================= 字幕（1300–1480px，x 60–920） =================
+function subs(t){
+ for(const c of CUES){if(t<c[0]||t>=c[1])continue;
+  const lines=c[2].split('\n');const e=eo(P(t,c[0],c[0]+0.15));
+  let size=50;X.font=`700 ${size}px ${SANS}`;const mw=Math.max(...lines.map(l=>X.measureText(l).width));if(mw>840)size=Math.floor(50*840/mw);
+  const lh=lines.length>2?68:74,base=lines.length===1?1410:(lines.length===2?1374:1342);
+  lines.forEach((ln,i)=>{const y=base+i*lh+(1-e)*8;
+   const segs=[];let s=ln;while(s.length){let hit=null,idx=1e9;for(const k of KEY){const j=s.indexOf(k);if(j>=0&&j<idx){idx=j;hit=k;}}
+    if(!hit){segs.push([s,INK]);break;}if(idx>0)segs.push([s.slice(0,idx),INK]);segs.push([hit,RED]);s=s.slice(idx+hit.length);}
+   X.save();X.globalAlpha=e;X.font=`700 ${size}px ${SANS}`;X.textBaseline='alphabetic';
+   const W=segs.reduce((q,g)=>q+X.measureText(g[0]).width,0);let x=490-W/2;
+   for(const g of segs){X.lineWidth=10;X.strokeStyle=PAPER;X.lineJoin='round';X.strokeText(g[0],x,y);X.fillStyle=g[1];X.fillText(g[0],x,y);x+=X.measureText(g[0]).width;}
+   X.restore();});
+  VIS.push('SUB:'+c[2]);}
+}
+// ================= 音效事件 =================
+(function(){ev(S('L01')+0.05,'pop');ev(S('L01')+0.6,'tick');ev(at('L01','？')+0.1,'strike');
+ ev(S('L02')+0.3,'whoosh');ev(at('L02','：'),'stamp');ev(S('L03')+0.2,'pop');
+ ev(S('L04')-0.1,'whoosh');[0,0.35,0.7,1.05].forEach(d=>ev(at('L04','，')+0.1+d,'tick'));
+ ev(S('L05')-0.15,'whoosh');ev(at('L05','：'),'pen');ev(S('L06'),'tick');ev(at('L06','用')+0.1,'strike');ev(at('L06','用')+0.35,'strike');ev(at('L06','用')+0.6,'strike');
+ ev(at('L07','，')-0.2,'strike');ev(at('L07','吞')-0.2,'strike');
+ ev(at('L08','。')-0.6,'strike');ev(at('L08','。')-0.3,'strike');ev(at('L09','：'),'pop');
+ ev(S('L10')+0.15,'tick');ev(S('L10')+0.5,'tick');ev(S('L10')+0.85,'tick');
+ ev(at('L11','：')-0.4,'pop');ev(E('L11')-0.5,'pop');ev(at('L12','钱'),'pop');ev(at('L12','；'),'pop');
+ ev(S('L13'),'tick');ev(at('L13','：'),'pop');ev(at('L14','，',2)-0.2,'pop');ev(E('L14')-0.3,'strike');
+ ev(S('L15')+0.2,'whoosh');ev(at('L15','。'),'stamp');ev(S('L16')+0.4,'drop');ev(S('L16')+0.65,'drop');ev(S('L16')+0.9,'drop');
+ ev(S('L17'),'tick');ev(at('L17','：'),'stamp');ev(S('L18')+0.2,'whoosh');ev(at('L18','：'),'pen');
+ ev(S('L19'),'whoosh');ev(at('L19','，')+0.2,'pop');ev(S('L20'),'pop');ev(A.end,'whoosh');ev(A.end+1.5,'chime');})();
+ ev(S('L18'),'tick');ev(at('L18','：'),'stamp');ev(S('L19')+0.1,'whoosh');ev(at('L19','，')+0.6,'pen');ev(at('L19','，')+1.1,'stamp');
+// ================= 颗粒 + 主渲染 =================
+let GRAIN=null;
+function makeGrain(){const g=document.createElement('canvas');g.width=g.height=256;const q=g.getContext('2d');const d=q.createImageData(256,256);
+ let s=12345;const r=()=>(s=(s*1103515245+12345)&0x7fffffff)/0x7fffffff;
+ for(let i=0;i<d.data.length;i+=4){const v=r()*255;d.data[i]=d.data[i+1]=d.data[i+2]=v;d.data[i+3]=7;}q.putImageData(d,0,0);GRAIN=X.createPattern(g,'repeat');}
+window.render=function(t){VIS=[];X.setTransform(1,0,0,1,0,0);X.globalAlpha=1;
+ const bg=X.createRadialGradient(500,760,80,500,860,1250);bg.addColorStop(0,'#171B22');bg.addColorStop(1,'#08090C');X.fillStyle=bg;X.fillRect(0,0,1080,1920);X.fillStyle=GRAIN;X.fillRect(0,0,1080,1920);
+ hook(t);title(t);card(t);tracker(t);endcard(t);subs(t);};
+window.TEXTS=function(t){render(t);return VIS.slice();};
+window.READY=false;
+Promise.all([document.fonts.load(`900 40px ${SERIF}`,'Token词元费曼'),document.fonts.load(`700 40px ${SERIF}`,'Token词元'),document.fonts.load(`500 40px ${SANS}`,'Token词元'),document.fonts.load(`700 40px ${SANS}`,'Token词元')])
+ .then(()=>{makeGrain();render(0);window.READY=true;});
+</script></body></html>
