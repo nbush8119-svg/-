@@ -1,0 +1,16 @@
+标题（25 字）：
+AI按字收费吗？一张卡讲透Token｜费曼卡片03
+
+简介：
+AI 是按字收费的吗？不是，它按 Token（词元）收费。
+用费曼学习法四步，把 Token 讲成一句话：Token，就是 AI 眼里的一个字。
+今晚打开你常用的 AI，让它数一数 strawberry 里有几个 r，看它会不会数错，评论区告诉我。
+
+出处：作者自我认知（Shaomanman）
+许可：CC BY 4.0（署名 4.0 国际）creativecommons.org/licenses/by/4.0
+配音：Qwen3-TTS 本地生成（参考 ElevenLabs Brian 音色）
+配乐：ACE-Step 1.5 本地生成（MIT），种子 3301
+
+#费曼学习法 #Token #人工智能 #认知提升 #知识分享
+
+合集：费曼学习法卡片（树码 B7.1，上级 B7 科技与变化）
