@@ -12,6 +12,7 @@
 |---|---|---|---|---|
 | 01 | 根 | 三观 | 三观，就是你每天都在用的导航 | 只有封面在库（源工程未保存） |
 | 02 | A | 哲学 | 哲学，就是把理所当然，重新问一遍 | [episodes/02-philosophy/release](episodes/02-philosophy/release) |
+| 03 | B7.1 | Token 词元 | Token，就是 AI 眼里的一个字 | [episodes/03-token/release](episodes/03-token/release) |
 
 ## 知识树与树码
 
