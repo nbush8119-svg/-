@@ -34,7 +34,8 @@ cards:
     one_liner: Token，就是 AI 眼里的一个字。
     parent: B7
     links: [E7]
-    status: in_production
+    status: published
+    published: 2026-10-24
     script: cards/03-Token词元.md
     episode: episodes/03-token
 
