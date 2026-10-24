@@ -1,0 +1,333 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+@font-face{font-family:"Noto Sans CJK SC";font-weight:500;src:url(fonts/NotoSansCJKsc-Medium.otf)}
+@font-face{font-family:"Noto Sans CJK SC";font-weight:700;src:url(fonts/NotoSansCJKsc-Bold.otf)}
+@font-face{font-family:"Noto Sans CJK SC";font-weight:900;src:url(fonts/NotoSansCJKsc-Black.otf)}
+@font-face{font-family:"Noto Serif CJK SC";font-weight:100 900;src:url(fonts/NotoSerifCJKsc-Black.otf)}
+html,body{margin:0;background:#0E1014}canvas{display:block}
+</style></head>
+<body><canvas id="c" width="1080" height="1920"></canvas>
+<script src="timings.js"></script>
+<script>
+// 费曼学习法卡片 02 · 哲学 —— 沿用卡片01的画面语法与配色；时间轴全部来自 timings.js（配音实测）
+const C=document.getElementById('c'),X=C.getContext('2d');
+const PAPER='#0E1014',CARD='#161A20',INK='#ECE5D8',RED='#CDAA6B',MUTE='#857F74',SOFT='#2B3039';
+const SANS='"Noto Sans CJK SC"',SERIF='"Noto Serif CJK SC"';
+// ---- timeline ----
+const TM={};for(const r of window.TIMINGS)TM[r.id]=r;
+const S=id=>TM[id].start,E=id=>TM[id].end;
+// time where the n-th occurrence of ch inside line id is spoken (char-proportional)
+function at(id,ch,n=1){const r=TM[id],s=r.text;let i=-1;for(let k=0;k<n;k++)i=s.indexOf(ch,i+1);if(i<0)return r.end;
+ return r.start+(r.end-r.start)*(i+1)/s.length;}
+const A={end:S('L22')};
+window.DUR=E('L22')+4.6;
+// subtitles: one cue per sentence, wrapped to ≤2 lines at a punctuation mark near the middle
+function wrap(s){const n=s.length;if(n<=15)return s;let best=-1,bd=1e9;
+ for(let i=3;i<n-3;i++){if('，。？：；、'.includes(s[i])){const d=Math.abs(i+1-n/2);if(d<bd){bd=d;best=i+1;}}}
+ if(best<0)best=Math.ceil(n/2);return s.slice(0,best)+'\n'+s.slice(best);}
+const CUES=window.TIMINGS.map((r,i,a)=>[r.start-0.05,i+1<a.length?Math.min(a[i+1].start-0.05,r.end+0.9):r.end+1.8,wrap(r.text)]);
+window.CUES=CUES;
+const KEY=['费曼学习法','理所当然','值不值得','哲学','三观','为什么'];
+window.EV=[];const ev=(t,type)=>window.EV.push({t:+t.toFixed(3),type});
+
+const cl=(v,a=0,b=1)=>Math.max(a,Math.min(b,v));
+const P=(t,a,b)=>cl((t-a)/(b-a));
+const eo=x=>1-Math.pow(1-x,3);
+const eio=x=>x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2;
+const lerp=(a,b,k)=>a+(b-a)*k;
+function spring(x){if(x<=0)return 0;const w=13,z=0.78,wd=w*Math.sqrt(1-z*z);
+ return 1-Math.exp(-z*w*x)*(Math.cos(wd*x)+z*w/wd*Math.sin(wd*x));}
+function bez(p0,p1,p2,p3,n=64){const r=[];for(let i=0;i<=n;i++){const u=i/n,v=1-u;
+ r.push([v*v*v*p0[0]+3*v*v*u*p1[0]+3*v*u*u*p2[0]+u*u*u*p3[0],v*v*v*p0[1]+3*v*v*u*p1[1]+3*v*u*u*p2[1]+u*u*u*p3[1]]);}return r;}
+function lens(pts){const L=[0];for(let i=1;i<pts.length;i++)L.push(L[i-1]+Math.hypot(pts[i][0]-pts[i-1][0],pts[i][1]-pts[i-1][1]));return L;}
+function stroke(pts,p,w,col,dash,alpha=1){if(p<=0)return;const L=lens(pts),T=L[L.length-1]*cl(p);
+ X.save();X.globalAlpha*=alpha;X.beginPath();X.moveTo(pts[0][0],pts[0][1]);
+ for(let i=1;i<pts.length;i++){if(L[i]<=T)X.lineTo(pts[i][0],pts[i][1]);else{const k=(T-L[i-1])/(L[i]-L[i-1]);
+ X.lineTo(lerp(pts[i-1][0],pts[i][0],k),lerp(pts[i-1][1],pts[i][1],k));break;}}
+ X.lineWidth=w;X.strokeStyle=col;X.lineCap='round';X.lineJoin='round';X.setLineDash(dash||[]);X.stroke();X.restore();}
+function ptAt(pts,p){const L=lens(pts),T=L[L.length-1]*cl(p);for(let i=1;i<pts.length;i++){if(L[i]>=T){const k=(T-L[i-1])/((L[i]-L[i-1])||1);
+ return [lerp(pts[i-1][0],pts[i][0],k),lerp(pts[i-1][1],pts[i][1],k),Math.atan2(pts[i][1]-pts[i-1][1],pts[i][0]-pts[i-1][0])];}}const n=pts.length-1;return [pts[n][0],pts[n][1],0];}
+function circ(cx,cy,r){const a=[];for(let i=0;i<=72;i++){const q=-Math.PI/2+i/72*Math.PI*2;a.push([cx+r*Math.cos(q),cy+r*Math.sin(q)]);}return a;}
+function text(s,x,y,size,col,font=SANS,align='center',weight=500,alpha=1){if(alpha<=0)return;X.save();X.globalAlpha*=alpha;
+ X.font=`${weight} ${size}px ${font}`;X.fillStyle=col;X.textAlign=align;X.textBaseline='alphabetic';X.fillText(s,x,y);X.restore();VIS.push(s);}
+let VIS=[];
+function mixed(segs,cx,y,size,font=SERIF,weight=700,alpha=1,dy=0){if(alpha<=0)return;X.save();X.globalAlpha*=alpha;
+ X.font=`${weight} ${size}px ${font}`;X.textBaseline='alphabetic';X.textAlign='left';
+ const W=segs.reduce((s,g)=>s+X.measureText(g[0]).width,0);let x=cx-W/2;
+ for(const g of segs){X.fillStyle=g[1];X.fillText(g[0],x,y+dy);x+=X.measureText(g[0]).width;}X.restore();
+ VIS.push(segs.map(g=>g[0]).join(''));}
+function env(t,a,b,din=0.35,dout=0.25){const i=eo(P(t,a,a+din)),o=eo(P(t,b-dout,b));return {a:i*(1-o),dy:(1-i)*26-o*20};}
+function arrowHead(x,y,ang,s,col){X.save();X.translate(x,y);X.rotate(ang);X.beginPath();X.moveTo(s,0);X.lineTo(-s*0.8,-s*0.75);X.lineTo(-s*0.35,0);X.lineTo(-s*0.8,s*0.75);X.closePath();X.fillStyle=col;X.fill();X.restore();}
+function tag(s,x,y,col,fill,size=32,alpha=1){if(alpha<=0)return;X.save();X.globalAlpha*=alpha;X.font=`700 ${size}px ${SANS}`;
+ const w=X.measureText(s).width+size*1.0,h=size*1.55;X.beginPath();X.roundRect(x-w/2,y-h/2,w,h,h/2);
+ if(fill){X.fillStyle=col;X.fill();}else{X.fillStyle=CARD;X.fill();X.lineWidth=3;X.strokeStyle=col;X.stroke();}
+ X.fillStyle=fill?CARD:col;X.textAlign='center';X.textBaseline='middle';X.fillText(s,x,y+2);X.restore();VIS.push(s);}
+function pin(x,y,s,col=RED){X.save();X.translate(x,y);X.scale(s,s);X.beginPath();X.moveTo(0,0);
+ X.bezierCurveTo(-30,-38,-34,-58,-34,-74);X.arc(0,-74,34,Math.PI,0);X.bezierCurveTo(34,-58,30,-38,0,0);X.fillStyle=col;X.fill();
+ X.beginPath();X.arc(0,-74,12,0,Math.PI*2);X.fillStyle=CARD;X.fill();X.restore();}
+
+// ================= 开场：「为什么」台阶往下坠 =================
+const STAIR=[['好好学习','L01',null],['好大学','L01','？'],['好工作','L02','？'],['多赚钱，过得好','L03','？']];
+function stairPos(i){return [290+i*85,470+i*150];}
+function tread(x,y,w,s,col,fill,alpha){X.save();X.globalAlpha*=alpha;X.beginPath();X.roundRect(x-w/2,y-36,w,72,14);
+ X.fillStyle=fill;X.fill();X.lineWidth=3;X.strokeStyle=col;X.stroke();
+ X.fillStyle=col;X.font=`700 38px ${SANS}`;X.textAlign='center';X.textBaseline='middle';X.fillText(s,x,y+2);X.restore();VIS.push(s);}
+function hook(t){
+ const out=eio(P(t,E('L06')+0.1,S('L07')+0.35));if(out>=1)return;
+ X.save();X.globalAlpha=1-out;
+ // 相机随台阶缓慢下移，问到第四层时整体上推
+ const cam=lerp(0,-120,eio(P(t,S('L03'),S('L04')+0.4)));X.translate(0,cam-out*160);X.translate(470,720);X.scale(1.3,1.3);X.translate(-470,-720);
+ const shown=STAIR.map((s,i)=>i===0?S('L01')+0.05:at(s[1],s[2]));
+ STAIR.forEach((s,i)=>{const [x,y]=stairPos(i),k=eo(P(t,shown[i],shown[i]+0.35));if(k<=0)return;
+  const fade=i<3?lerp(1,0.55,P(t,shown[i+1],shown[i+1]+0.6)):1;
+  tread(x,y+(1-k)*-40,i===3?340:280,s[0],INK,CARD,k*fade);
+  // 「为什么？」下行箭头
+  if(i<3){const a=eo(P(t,shown[i]+0.3,shown[i+1]));const [x2,y2]=stairPos(i+1);
+   if(a>0){const pts=bez([x+150,y+10],[x+215,y+30],[x2+170,y2-90],[x2+90,y2-44],32);stroke(pts,a,5,RED);
+    if(a>0.97){const e=ptAt(pts,1);arrowHead(e[0],e[1],e[2],16,RED);}
+    text('为什么？',x+200,y+70,30,RED,SANS,'left',700,eo(P(t,shown[i]+0.3,shown[i]+0.7))*fade);}}});
+ // 第五层：什么叫过得好？——虚线台阶，问完就断
+ const [x4,y4]=stairPos(4),q=eo(P(t,S('L04')+0.1,S('L04')+0.5)),brk=P(t,E('L04')+0.25,E('L04')+1.6);
+ if(q>0){const pts=bez([stairPos(3)[0]+170,stairPos(3)[1]+10],[x4+80,y4-150],[x4+40,y4-110],[x4,y4-48],32);
+  stroke(pts,q,5,RED,[10,10]);text('为什么？',x4-210,y4-80,30,RED,SANS,'left',700,q*(1-brk));
+  const g=eio(brk);
+  for(const side of [-1,1]){X.save();X.translate(x4+side*(6+g*30),y4+g*g*520);X.rotate(side*g*0.5);
+   X.beginPath();X.rect(side<0?-200:0,-60,200,120);X.clip();
+   X.save();X.globalAlpha*=q*(1-g);X.beginPath();X.roundRect(-190,-38,380,76,14);X.fillStyle=CARD;X.fill();X.lineWidth=4;X.setLineDash([14,9]);X.strokeStyle=RED;X.stroke();
+   X.fillStyle=RED;X.font=`900 40px ${SERIF}`;X.textAlign='center';X.textBaseline='middle';X.fillText('什么叫过得好？',0,2);X.restore();X.restore();}
+  VIS.push('什么叫过得好？');
+  if(brk>0&&brk<0.4){stroke([[x4-8,y4-40],[x4+10,y4-6],[x4-6,y4+14],[x4+8,y4+40]],eo(brk/0.15),4,INK,null,1-brk/0.4);}}
+ X.restore();
+ // L05 答不上来 / L06 哲学开始了：盖章
+ const nm=env(t,S('L05'),S('L06')+0.2);
+ if(nm.a>0)mixed([['大多数人，',INK],['答不上来',RED]],500,1010+nm.dy,58,SERIF,900,nm.a*(1-out));
+ const st=P(t,at('L06','，')+0.75,at('L06','，')+1.05);
+ if(st>0&&out<1){const s=lerp(1.35,1,eo(st));X.save();X.globalAlpha=(1-out)*cl(st*2);X.translate(500,1110-out*160);X.scale(s,s);
+  text('哲学',0,70,230,RED,SERIF,'center',900);X.restore();}
+}
+// ================= 方法标题 =================
+function title(t){
+ const a=S('L07'),i=eo(P(t,a+0.35,a+0.95)),o=eio(P(t,S('L08')-0.25,S('L08')+0.35));if(i<=0||o>=1)return;
+ X.save();X.globalAlpha=i*(1-o);
+ text('今天的方法',500,620+(1-i)*30,44,MUTE,SANS,'center',500);
+ text('费曼学习法',500,790+(1-i)*30,130,INK,SERIF,'center',900);
+ const f=eo(P(t,at('L07','，')+0.2,at('L07','，')+0.7));text('四步，把哲学讲透',500,930+(1-f)*24,56,RED,SERIF,'center',700,f);
+ X.restore();
+}
+// ================= 四步进度条 =================
+const STEPS=['一 选概念','二 讲给孩子','三 找卡点','四 简化'];
+function tracker(t){
+ const a0=at('L07','，')+0.1,enter=[0,0.35,0.7,1.05].map(d=>a0+d);
+ let act=-1;if(t>=S('L08'))act=0;if(t>=S('L09'))act=1;if(t>=S('L12'))act=2;if(t>=S('L18'))act=3;if(t>=A.end)act=4;
+ const xs=[175,385,595,805],y=292;
+ for(let i=0;i<4;i++){const e=eo(P(t,enter[i],enter[i]+0.35))*(1-eio(P(t,A.end+0.3,A.end+0.9)));if(e<=0)continue;
+  X.save();X.globalAlpha=e;X.translate(0,(1-e)*-30);
+  const w=198,h=62;X.beginPath();X.roundRect(xs[i]-w/2,y-h/2,w,h,h/2);
+  const done=i<act,on=i===act;
+  if(on){X.fillStyle=RED;X.fill();}else{X.fillStyle=PAPER;X.fill();X.lineWidth=3;X.strokeStyle=done?INK:SOFT;X.stroke();}
+  X.font=`700 28px ${SANS}`;X.textAlign='center';X.textBaseline='middle';X.fillStyle=on?CARD:(done?INK:MUTE);
+  X.fillText(done?'✓'+STEPS[i].slice(1):STEPS[i],xs[i],y+2);X.restore();VIS.push(STEPS[i]);}
+}
+// ================= 费曼卡片 =================
+function card(t){
+ const s2=S('L08'),ci=eio(P(t,s2-0.15,s2+0.75)),co=eio(P(t,A.end,A.end+0.7));if(ci<=0||co>=1)return;
+ const x0=lerp(320,130,ci),x1=lerp(680,870,ci),y0=lerp(720,380,ci)-co*220,y1=lerp(900,1205,ci)-co*220;
+ X.save();X.globalAlpha=1-co;
+ const z=1+0.035*eio(P(t,s2+1,S('L18')))-0.02*eio(P(t,S('L18'),S('L20')));X.translate(500,800);X.scale(z,z);X.translate(-500,-800);
+ X.fillStyle='rgba(0,0,0,0.45)';X.beginPath();X.roundRect(x0+10,y0+14,x1-x0,y1-y0,22);X.fill();
+ X.fillStyle=CARD;X.beginPath();X.roundRect(x0,y0,x1-x0,y1-y0,22);X.fill();X.lineWidth=3;X.strokeStyle=SOFT;X.stroke();
+ if(ci<0.98){X.restore();return;}
+ X.translate(0,-co*220);
+ text('费曼卡片 No.02',170,440,30,MUTE,SANS,'left',500);
+ text('作者自我认知',830,440,30,MUTE,SANS,'right',500);
+ X.strokeStyle='#1E232B';X.lineWidth=2;for(let y=560;y<1190;y+=70){X.beginPath();X.moveTo(160,y);X.lineTo(840,y);X.stroke();}
+ text('概念',170,512,36,INK,SANS,'left',700);
+ X.strokeStyle=INK;X.lineWidth=3;X.beginPath();X.moveTo(160,535);X.lineTo(840,535);X.stroke();
+ const wt=at('L08','：'),w=P(t,wt,wt+0.9);
+ if(w>0){X.save();X.beginPath();X.rect(250,440,eo(w)*260,110);X.clip();text('哲学',260,522,78,RED,SERIF,'left',900);X.restore();}
+ const hint=env(t,s2+0.6,wt);if(hint.a>0)text('↑ 写在最上方',520,512+hint.dy,34,MUTE,SANS,'left',500,hint.a);
+ body(t);
+ X.restore();
+}
+function label(t,a,b,segs,y=618,size=48){const e=env(t,a,b);if(e.a>0)mixed(segs,500,y,size,SERIF,700,e.a,e.dy);}
+// 小人（孩子 / 提线木偶共用）
+function person(x,y,s,col,alpha=1,arm=0){X.save();X.globalAlpha*=alpha;X.translate(x,y);X.scale(s,s);X.fillStyle=col;
+ X.beginPath();X.arc(0,-70,48,0,Math.PI*2);X.fill();X.beginPath();X.roundRect(-60,-10,120,150,40);X.fill();
+ X.strokeStyle=col;X.lineWidth=18;X.lineCap='round';
+ X.beginPath();X.moveTo(-52,20);X.lineTo(-100,lerp(110,-30,arm));X.moveTo(52,20);X.lineTo(100,lerp(110,-30,arm));X.stroke();
+ X.beginPath();X.moveTo(-28,130);X.lineTo(-36,230);X.moveTo(28,130);X.lineTo(36,230);X.stroke();X.restore();}
+function icon(kind,x,y,col,k){X.save();X.globalAlpha*=k;X.translate(x,y);X.strokeStyle=col;X.fillStyle=col;X.lineWidth=7;X.lineCap='round';X.lineJoin='round';
+ const r=72;X.beginPath();X.arc(0,0,r,0,Math.PI*2);X.fillStyle=CARD;X.fill();X.lineWidth=4;X.strokeStyle=SOFT;X.stroke();X.strokeStyle=col;X.fillStyle=col;X.lineWidth=7;
+ if(kind==='eye'){X.beginPath();X.moveTo(-44,0);X.quadraticCurveTo(0,-38,44,0);X.quadraticCurveTo(0,38,-44,0);X.stroke();X.beginPath();X.arc(0,0,14,0,Math.PI*2);X.fill();}
+ if(kind==='key'){X.beginPath();X.arc(-18,-12,20,0,Math.PI*2);X.stroke();X.beginPath();X.moveTo(-4,2);X.lineTo(34,40);X.moveTo(18,24);X.lineTo(30,12);X.moveTo(26,32);X.lineTo(38,20);X.stroke();}
+ if(kind==='compass'){X.beginPath();X.arc(0,0,40,0,Math.PI*2);X.stroke();X.beginPath();X.moveTo(0,-30);X.lineTo(11,0);X.lineTo(0,30);X.lineTo(-11,0);X.closePath();X.fill();}
+ X.restore();}
+function scissors(x,y,open,alpha){X.save();X.globalAlpha*=alpha;X.translate(x,y);X.strokeStyle=RED;X.lineWidth=7;X.lineCap='round';
+ for(const s of [-1,1]){X.save();X.rotate(s*open*0.45);X.beginPath();X.moveTo(-70,0);X.lineTo(20,0);X.stroke();X.beginPath();X.arc(40,s*14,16,0,Math.PI*2);X.stroke();X.restore();}X.restore();}
+// 01 的地图（缩略）——第四步回归
+const M={};
+M.river=bez([-340,-120],[-150,-60],[-60,-260],[120,-160]).concat(bez([120,-160],[260,-80],[220,120],[340,180]).slice(1));
+M.road1=[[-340,70],[340,30]];M.road2=[[-70,-340],[-30,340]];
+M.W=[-250,255];M.F=[-20,40];M.T=[205,-225];
+M.route=bez(M.W,[-180,200],[-90,95],M.F).concat(bez(M.F,[60,-30],[150,-120],M.T).slice(1));
+function miniMap(t,a,cx,cy,sc){const k=eo(P(t,a,a+1.0));if(k<=0)return;X.save();X.translate(cx,cy);X.scale(sc*lerp(0.8,1,k),sc*lerp(0.8,1,k));X.globalAlpha*=k;
+ X.save();X.beginPath();X.arc(0,0,330,0,Math.PI*2);X.clip();
+ stroke(M.road1,1,6,MUTE);stroke(M.road2,1,6,MUTE);stroke(M.river,1,12,'#5F7684');
+ stroke(M.route,eo(P(t,a+0.3,a+1.8)),12,RED);pin(M.T[0],M.T[1],1.0);X.restore();
+ stroke(circ(0,0,330),1,8,INK);X.restore();}
+function body(t){
+ // 第一步
+ const s1=env(t,S('L08')+0.9,S('L09'));if(s1.a>0)text('一张纸，只写一个概念',500,860+s1.dy,44,MUTE,SERIF,'center',700,s1.a);
+ // 第二步：孩子 + 划掉术语
+ const s2=env(t,S('L09')+0.2,S('L10')+0.1);
+ if(s2.a>0){X.save();X.globalAlpha*=s2.a;X.translate(0,s2.dy);
+  person(330,880,1,INK);tag('十二岁',330,1150,RED,true,32,1);
+  const t0=at('L09','，');
+  ['形而上学','辩证法','存在主义'].forEach((wd,i)=>{const yy=760+i*130,e=eo(P(t,t0+i*0.25,t0+0.4+i*0.25));if(e>0){tag(wd,640,yy,MUTE,false,36,e);
+   const sk=eo(P(t,at('L09','用')+0.1+i*0.25,at('L09','用')+0.35+i*0.25));if(sk>0)stroke([[555,yy+6],[725,yy-6]],sk,6,RED);}});
+  X.restore();}
+ label(t,S('L09')+0.2,S('L10')+0.1,[['不许用',INK],['术语',RED]]);
+ // L10 追问链
+ label(t,S('L10'),S('L11'),[['哲学',RED],[' ＝ 一直问',INK],['为什么',RED]]);
+ const c10=env(t,S('L10')+0.3,S('L11'));
+ if(c10.a>0){const n=5,t1=at('L10','，',2),t2=E('L10');
+  for(let i=0;i<n;i++){const ti=lerp(t1-0.6,t2-0.4,i/(n-1)),e=eo(P(t,ti,ti+0.3));if(e<=0)continue;const y=735+i*86;
+   tag('为什么？',lerp(330,670,i/(n-1)),y+(1-e)*-14,i===n-1?RED:INK,i===n-1,32,e*c10.a);}
+  const g=eo(P(t,t2-0.3,t2+0.2));if(g>0){X.save();X.globalAlpha*=g*c10.a;X.fillStyle=RED;X.fillRect(560,1135,220,6);X.restore();text('问到底',670,1110,30,RED,SANS,'center',700,g*c10.a);}}
+ // L11 三问
+ const q11=env(t,S('L11'),S('L12')+0.05);
+ if(q11.a>0){X.save();X.globalAlpha*=q11.a;X.translate(0,q11.dy);
+  text('它只追问三件事',500,640,44,MUTE,SERIF,'center',700);
+  const Q=[['eye','真的？','本体论',at('L11','：')],['key','知道？','认识论',at('L11','？',1)],['compass','怎么活？','伦理学',at('L11','？',2)]];
+  Q.forEach((q,i)=>{const x=260+i*240,k=spring(t-q[3]);if(k<=0)return;icon(q[0],x,820,i===2?RED:INK,cl(k*2));
+   text(q[1],x,950,44,i===2?RED:INK,SERIF,'center',900,cl(k*2));
+   const jt=q[3]+0.35,j=eo(P(t,jt,jt+0.3));text(q[2],x,1030,30,MUTE,SANS,'center',500,j);
+   const sk=eo(P(t,jt+0.6,jt+0.85));if(sk>0)stroke([[x-60,1020],[x+60,1008]],sk,5,RED);});
+  X.restore();}
+ // 第三步：卡点
+ const s12=env(t,S('L12'),S('L13'));
+ if(s12.a>0){label(t,S('L12'),S('L13'),[['卡住的地方',INK]]);
+  const k=spring(t-at('L12','：'));if(k>0){X.save();X.globalAlpha*=s12.a;X.translate(500,880);X.scale(k,k);
+   X.beginPath();X.arc(0,0,150,0,Math.PI*2);X.lineWidth=6;X.setLineDash([16,12]);X.strokeStyle=RED;X.stroke();X.restore();
+   text('哲学有什么用？',500,900,60,RED,SERIF,'center',900,s12.a*cl(k));}}
+ // L13–L15 天平
+ const b=env(t,S('L13'),S('L16')+0.1);
+ if(b.a>0){X.save();X.globalAlpha*=b.a;X.translate(0,b.dy);
+  const tilt=lerp(0.16,-0.16,eio(P(t,S('L15'),S('L15')+0.9)));// 先偏向“科学”，“值不值得”落下后反转
+  const cx=500,cy=780,L=250;
+  X.fillStyle=INK;X.beginPath();X.moveTo(cx,cy);X.lineTo(cx-60,cy+330);X.lineTo(cx+60,cy+330);X.closePath();X.globalAlpha*=0.18;X.fill();X.globalAlpha/=0.18;
+  X.fillRect(cx-90,cy+330,180,10);X.beginPath();X.arc(cx,cy,14,0,Math.PI*2);X.fill();
+  const lx=cx-L*Math.cos(tilt),ly=cy-L*Math.sin(tilt),rx=cx+L*Math.cos(tilt),ry=cy+L*Math.sin(tilt);
+  stroke([[lx,ly],[rx,ry]],1,10,INK);
+  const pan=(x,y,lab,col,k,head)=>{stroke([[x,y],[x-80,y+130]],1,3,MUTE);stroke([[x,y],[x+80,y+130]],1,3,MUTE);
+   stroke(bez([x-95,y+130],[x-60,y+175],[x+60,y+175],[x+95,y+130],24),1,6,INK);
+   if(k>0){tag(lab,x,y+98-(1-k)*60,col,col===RED,30,k);text(head,x,y+230,30,MUTE,SANS,'center',700,k);}};
+  pan(lx,ly,'熬夜伤身体',INK,eo(P(t,at('L13','，'),at('L13','，')+0.4)),'科学');
+  pan(rx,ry,'值不值得？',RED,spring(t-at('L14','，',2)),'哲学');
+  X.restore();}
+ label(t,S('L13'),S('L14'),[['科学：',MUTE],['是什么',INK]]);
+ label(t,S('L14'),S('L15'),[['科学答不了：',MUTE],['值不值得',RED]]);
+ label(t,S('L15'),S('L16')+0.1,[['不给答案，',INK],['教你找',RED]]);
+ // L16–L17 提线木偶，L17 句末剪断
+ const pu=env(t,S('L16'),S('L18')+0.4);
+ if(pu.a>0){X.save();X.globalAlpha*=pu.a;X.translate(0,pu.dy);
+  const cutT=E('L17')+0.25,cut=P(t,cutT,cutT+0.15),fall=eio(P(t,cutT+0.1,cutT+1.0));
+  const sway=Math.sin(t*2.1)*14*(1-fall),bx=500,by=650;
+  const k=eo(P(t,S('L16')+0.4,S('L16')+1.0));
+  X.save();X.globalAlpha*=k;X.fillStyle=MUTE;X.fillRect(bx-170+sway,by-6,340,12);X.fillRect(bx-6+sway,by-60,12,120);X.restore();
+  const tagA=eo(P(t,at('L17','的',1)-0.2,at('L17','的',1)+0.2));tag('别人的哲学',bx+sway,by-95,MUTE,false,28,tagA);
+  const joints=[[-100,840],[100,840],[-36,1080],[36,1080],[0,760]],tops=[[-150,0],[150,0],[-60,0],[60,0],[0,0]];
+  joints.forEach((j,i)=>{const top=[bx+tops[i][0]+sway,by+6];const dn=[500+j[0]+sway*0.4,j[1]];
+   const kk=eo(P(t,S('L16')+0.6+i*0.08,S('L16')+1.2+i*0.08));
+   if(cut<1)stroke([top,dn],kk,3,INK,null,0.8);
+   else{const mid=[lerp(top[0],dn[0],0.5),lerp(top[1],dn[1],0.5)+fall*60];stroke([top,[top[0],lerp(top[1],mid[1],0.5)]],1,3,INK,null,0.8*(1-fall));stroke([[dn[0],lerp(dn[1],mid[1],0.5)+fall*120],dn],1,3,INK,null,0.8*(1-fall));}});
+  const stand=eio(P(t,cutT+0.3,cutT+1.1));
+  person(500+sway*0.4*(1-stand),900,0.95,lerp(0,1,stand)>0.5?INK:MUTE,k,lerp(0.15,0.85,stand)*(1-stand)+stand*0.0);
+  const sc=P(t,cutT-0.5,cutT+0.4);if(sc>0&&sc<1)scissors(lerp(260,560,eo(P(t,cutT-0.5,cutT))),by+80,cut>0?0.05:0.6,1-P(sc,0.8,1));
+  X.restore();}
+ label(t,S('L16'),S('L17'),[['不想哲学',INK],[' ≠ ',MUTE],['躲开哲学',RED]]);
+ label(t,S('L17'),S('L18')+0.1,[['别人的哲学，',MUTE],['自己的一生',INK]],1160,44);
+ // 第四步：一句话
+ const os=env(t,at('L18','：')-0.1,S('L19')+0.1,0.3,0.3);
+ label(t,S('L18'),at('L18','：'),[['简化成',INK],['一句话',RED]]);
+ if(os.a>0){const s=lerp(1.2,1,eo(P(t,at('L18','：'),at('L18','：')+0.3)));X.save();X.translate(500,800);X.scale(s,s);X.translate(-500,-800);
+  text('哲学',500,760+os.dy,150,RED,SERIF,'center',900,os.a);
+  mixed([['把',INK],['理所当然',RED],['，',INK]],500,900,64,SERIF,900,os.a*eo(P(t,at('L18','，',2)-0.6,at('L18','，',2))),os.dy);
+  mixed([['重新问一遍',INK]],500,1000,64,SERIF,900,os.a*eo(P(t,at('L18','，',2),at('L18','，',2)+0.4)),os.dy);X.restore();}
+ // L19 地图回归 + 三观体检
+ const m=env(t,S('L19'),S('L20')+0.1);
+ if(m.a>0){X.save();X.globalAlpha*=m.a;
+  text('卡片 01：三观 ＝ 导航',500,640,40,MUTE,SERIF,'center',700);
+  miniMap(t,S('L19')+0.1,500,880,0.62);
+  const ck=at('L19','，'),c=eo(P(t,ck+0.6,ck+1.1));
+  if(c>0){stroke([[400,900],[470,970],[620,800]],c,22,RED);}
+  const st=spring(t-(ck+1.1));if(st>0){X.save();X.translate(500,1125);X.scale(lerp(1.3,1,cl(st)),lerp(1.3,1,cl(st)));tag('✓ 三观体检',0,0,RED,true,40,cl(st*2));X.restore();}
+  X.restore();}
+ // L20–L21 五个为什么
+ const f=env(t,S('L20'),A.end+0.1);
+ if(f.a>0){X.save();X.globalAlpha*=f.a;X.translate(0,f.dy);
+  mixed([['今晚，连问',INK],['五个为什么',RED]],500,650,52,SERIF,900,1);
+  text('挑一个你深信不疑的道理',500,730,36,MUTE,SANS,'center',500,1);
+  const t1=at('L20','，',2)-0.9,t2=E('L20')+0.2;
+  for(let i=0;i<5;i++){const ti=lerp(t1,t2-0.6,i/4),e=spring(t-ti);if(e<=0)continue;const x=260+i*120,y=880;
+   X.save();X.translate(x,y);X.scale(cl(e),cl(e));X.beginPath();X.arc(0,0,46,0,Math.PI*2);X.fillStyle=i<4?CARD:RED;X.fill();X.lineWidth=4;X.strokeStyle=i<4?INK:RED;X.stroke();
+   X.fillStyle=i<4?INK:CARD;X.font=`900 40px ${SERIF}`;X.textAlign='center';X.textBaseline='middle';X.fillText(String(i+1),0,3);X.restore();}
+  const q=eo(P(t,at('L20','，',2),at('L20','，',2)+0.4));text('你卡在第几个？',500,1020,52,RED,SERIF,'center',900,q);
+  const cm=spring(t-S('L21'));if(cm>0){X.save();X.translate(500,1120);X.scale(cl(cm),cl(cm));X.beginPath();X.roundRect(-190,-40,380,80,40);X.fillStyle=SOFT;X.fill();
+   X.beginPath();X.moveTo(-120,36);X.lineTo(-150,64);X.lineTo(-90,38);X.fill();X.restore();text('评论区告诉我',500,1132,36,INK,SANS,'center',700,cl(cm*2));}
+  X.restore();}
+}
+// ================= 片尾 =================
+function endcard(t){
+ const e=(d)=>eo(P(t,A.end+0.5+d,A.end+1.0+d));
+ if(t<A.end+0.5)return;
+ const a=e(0),b=e(0.25),c=e(0.6),d=e(0.9);
+ const seed=(window.META&&window.META.music_seed)?' · 种子 '+window.META.music_seed:'';
+ text('费曼学习法卡片',500,600+(1-a)*30,92,INK,SERIF,'center',900,a);
+ text('02 · 哲学',500,700+(1-b)*30,60,RED,SERIF,'center',700,b);
+ if(b>0){X.save();X.globalAlpha=b;X.fillStyle=SOFT;X.fillRect(300,760,400,3);X.restore();}
+ text('出处：作者自我认知（Shaomanman）',500,860+(1-c)*24,38,INK,SANS,'center',500,c);
+ text('许可：CC BY 4.0（署名 4.0 国际）',500,925+(1-c)*24,38,INK,SANS,'center',500,c);
+ text('creativecommons.org/licenses/by/4.0',500,982+(1-c)*24,28,MUTE,SANS,'center',500,c);
+ text('配乐：ACE-Step 1.5 本地生成（MIT）'+seed,500,1040+(1-c)*24,26,MUTE,SANS,'center',500,c);
+ text('配音：Qwen3-TTS 本地生成（参考 ElevenLabs Brian 音色）',500,1080+(1-c)*24,26,MUTE,SANS,'center',500,c);
+ text('下一张卡片见',500,1180+(1-d)*24,58,RED,SERIF,'center',900,d);
+}
+// ================= 字幕（1300–1480px，x 60–920） =================
+function subs(t){
+ for(const c of CUES){if(t<c[0]||t>=c[1])continue;
+  const lines=c[2].split('\n');const e=eo(P(t,c[0],c[0]+0.15));
+  let size=50;X.font=`700 ${size}px ${SANS}`;const mw=Math.max(...lines.map(l=>X.measureText(l).width));if(mw>840)size=Math.floor(50*840/mw);
+  const lh=74,base=lines.length===1?1410:1374;
+  lines.forEach((ln,i)=>{const y=base+i*lh+(1-e)*8;
+   const segs=[];let s=ln;while(s.length){let hit=null,idx=1e9;for(const k of KEY){const j=s.indexOf(k);if(j>=0&&j<idx){idx=j;hit=k;}}
+    if(!hit){segs.push([s,INK]);break;}if(idx>0)segs.push([s.slice(0,idx),INK]);segs.push([hit,RED]);s=s.slice(idx+hit.length);}
+   X.save();X.globalAlpha=e;X.font=`700 ${size}px ${SANS}`;X.textBaseline='alphabetic';
+   const W=segs.reduce((q,g)=>q+X.measureText(g[0]).width,0);let x=490-W/2;
+   for(const g of segs){X.lineWidth=10;X.strokeStyle=PAPER;X.lineJoin='round';X.strokeText(g[0],x,y);X.fillStyle=g[1];X.fillText(g[0],x,y);x+=X.measureText(g[0]).width;}
+   X.restore();});
+  VIS.push('SUB:'+c[2]);}
+}
+// ================= 音效事件 =================
+(function(){ev(S('L01')+0.05,'pop');['L01','L02','L03'].forEach(id=>{ev(at(id,'？'),'tick');});
+ ev(S('L04')+0.1,'tick');ev(E('L04')+0.25,'strike');ev(E('L04')+0.6,'drop');ev(at('L06','，')+0.75,'stamp');
+ ev(S('L07')-0.1,'whoosh');[0,0.35,0.7,1.05].forEach(d=>ev(at('L07','，')+0.1+d,'tick'));
+ ev(S('L08')-0.15,'whoosh');ev(at('L08','：'),'pen');ev(S('L09'),'tick');ev(at('L09','用')+0.1,'strike');ev(at('L09','用')+0.35,'strike');ev(at('L09','用')+0.6,'strike');
+ ev(at('L11','：'),'pop');ev(at('L11','？',1),'pop');ev(at('L11','？',2),'pop');ev(S('L12'),'tick');ev(at('L12','：'),'pop');
+ ev(at('L13','，'),'drop');ev(at('L14','，',2),'drop');ev(S('L15'),'whoosh');ev(E('L17')+0.25,'strike');ev(E('L17')+0.6,'drop');
+ ev(S('L18'),'tick');ev(at('L18','：'),'stamp');ev(S('L19')+0.1,'whoosh');ev(at('L19','，')+0.6,'pen');ev(at('L19','，')+1.1,'stamp');
+ ev(S('L20'),'whoosh');ev(S('L21'),'pop');ev(A.end,'whoosh');ev(A.end+1.5,'chime');})();
+// ================= 颗粒 + 主渲染 =================
+let GRAIN=null;
+function makeGrain(){const g=document.createElement('canvas');g.width=g.height=256;const q=g.getContext('2d');const d=q.createImageData(256,256);
+ let s=12345;const r=()=>(s=(s*1103515245+12345)&0x7fffffff)/0x7fffffff;
+ for(let i=0;i<d.data.length;i+=4){const v=r()*255;d.data[i]=d.data[i+1]=d.data[i+2]=v;d.data[i+3]=7;}q.putImageData(d,0,0);GRAIN=X.createPattern(g,'repeat');}
+window.render=function(t){VIS=[];X.setTransform(1,0,0,1,0,0);X.globalAlpha=1;
+ const bg=X.createRadialGradient(500,760,80,500,860,1250);bg.addColorStop(0,'#171B22');bg.addColorStop(1,'#08090C');X.fillStyle=bg;X.fillRect(0,0,1080,1920);X.fillStyle=GRAIN;X.fillRect(0,0,1080,1920);
+ hook(t);title(t);card(t);tracker(t);endcard(t);subs(t);};
+window.TEXTS=function(t){render(t);return VIS.slice();};
+window.READY=false;
+Promise.all([document.fonts.load(`900 40px ${SERIF}`,'哲学费曼'),document.fonts.load(`700 40px ${SERIF}`,'哲学'),document.fonts.load(`500 40px ${SANS}`,'哲学'),document.fonts.load(`700 40px ${SANS}`,'哲学')])
+ .then(()=>{makeGrain();render(0);window.READY=true;});
+</script></body></html>

@@ -1,0 +1,9 @@
+费曼学习法卡片 · 02 哲学 — 素材与许可
+
+内容：作者自我认知（Shaomanman），许可 CC BY 4.0（https://creativecommons.org/licenses/by/4.0/）
+配音：Qwen3-TTS 1.7B Base（MLX，本地生成，Apache-2.0）；参考音色截自《高性价比人生指南》EP01 旁白（ElevenLabs Brian，经 vidIQ 生成，用户账户）14.4–26.0 秒。
+读音回检：Qwen3-ASR 1.7B（本地），22 句全部通过（相似度 ≥ 0.92）。
+配乐：ACE-Step 1.5 XL-SFT（本地生成，MIT），种子 2201，候选 2201 / 4403 / 6605；按小节补一小节前奏，使高潮落在「更扎心的是」。
+音效：numpy 代码合成。
+画面：Canvas 2D 逐帧代码绘制，无第三方素材。
+字体：Noto Sans CJK SC / Noto Serif CJK SC（SIL OFL 1.1）。

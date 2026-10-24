@@ -1,0 +1,100 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+:root{--bg:#0E1014;--ink:#ECE5D8;--gold:#CDAA6B;--mute:#857F74;--soft:#2B3039}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:1080px;height:1920px;background:var(--bg);overflow:hidden}
+.page{position:relative;width:1080px;height:1920px;overflow:hidden;color:var(--ink);font-family:"Noto Sans SC";
+ background:radial-gradient(900px 900px at 50% 42%,#1d2129 0%,#12151a 55%,#0b0d10 100%)}
+.grain{position:absolute;inset:0;opacity:.10;mix-blend-mode:overlay}
+.serif{font-family:"Noto Serif SC";font-weight:900}
+.sans{font-family:"Noto Sans SC"}
+.gold{color:var(--gold)}
+.badge{position:absolute;left:80px;top:250px;display:flex;align-items:center;gap:18px;font:700 34px "Noto Sans SC";color:var(--mute);letter-spacing:4px}
+.badge b{color:var(--bg);background:var(--gold);padding:6px 16px;border-radius:8px;letter-spacing:2px}
+svg{position:absolute;left:0;top:0}
+.v{display:none}
+</style></head><body>
+<div class="page">
+<svg class="grain" width="1080" height="1920"><filter id="n"><feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="3" stitchTiles="stitch"/></filter><rect width="1080" height="1920" filter="url(#n)"/></svg>
+
+<!-- ============ V1 地图/导航 ============ -->
+<div class="v" id="v1">
+ <svg width="1080" height="1920" viewBox="0 0 1080 1920">
+  <defs><radialGradient id="glow" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#CDAA6B" stop-opacity=".22"/><stop offset="1" stop-color="#CDAA6B" stop-opacity="0"/></radialGradient></defs>
+  <!-- contour map lines -->
+  <g fill="none" stroke="#CDAA6B" stroke-opacity=".10" stroke-width="2">
+   <path d="M-50 560 C200 480 330 640 560 590 S900 470 1130 560"/>
+   <path d="M-50 620 C210 540 340 700 570 650 S910 530 1130 620"/>
+   <path d="M-50 680 C220 600 350 760 580 710 S920 590 1130 680"/>
+   <path d="M-50 1460 C240 1380 380 1540 600 1490 S930 1380 1130 1450"/>
+   <path d="M-50 1520 C250 1440 390 1600 610 1550 S940 1440 1130 1510"/>
+  </g>
+  <circle cx="540" cy="1060" r="420" fill="url(#glow)"/>
+  <!-- compass ring -->
+  <g transform="translate(540,1060)">
+   <circle r="330" fill="none" stroke="#CDAA6B" stroke-opacity=".35" stroke-width="3"/>
+   <circle r="300" fill="none" stroke="#CDAA6B" stroke-opacity=".18" stroke-width="1.5" stroke-dasharray="4 14"/>
+   <g stroke="#CDAA6B" stroke-opacity=".5" stroke-width="3">
+    <line y1="-345" y2="-315"/><line y1="345" y2="315"/><line x1="-345" x2="-315"/><line x1="345" x2="315"/>
+   </g>
+   <!-- needle -->
+   <g transform="rotate(38)"><path d="M0 -352 L16 -318 L-16 -318Z" fill="#CDAA6B"/></g>
+   <text y="-360" text-anchor="middle" font-family="Noto Sans SC" font-weight="700" font-size="26" fill="#CDAA6B" opacity=".7">N</text>
+  </g>
+ </svg>
+ <div class="badge"><b>No.01</b>费曼学习法卡片</div>
+ <div style="position:absolute;left:0;right:0;top:440px;text-align:center;font:700 58px 'Noto Sans SC';letter-spacing:4px">同一件事，</div>
+ <div style="position:absolute;left:0;right:0;top:520px;text-align:center;font:700 58px 'Noto Sans SC';letter-spacing:4px">为什么你们<span class="gold">看到的不一样</span>？</div>
+ <div class="serif" style="position:absolute;left:0;right:0;top:770px;text-align:center;font-size:300px;line-height:1;letter-spacing:10px;color:var(--ink);text-shadow:0 10px 60px rgba(0,0,0,.6)">三观</div>
+ <div style="position:absolute;left:0;right:0;top:1110px;text-align:center;font:900 64px 'Noto Serif SC';color:var(--gold);letter-spacing:12px">＝ 人生导航</div>
+ <div style="position:absolute;left:100px;right:100px;top:1300px;display:flex;justify-content:space-between;font:700 40px 'Noto Sans SC'">
+  <div style="text-align:center"><div class="gold" style="font-size:34px;letter-spacing:3px">世界观</div><div style="margin-top:12px">地图</div></div>
+  <div style="width:2px;background:var(--soft)"></div>
+  <div style="text-align:center"><div class="gold" style="font-size:34px;letter-spacing:3px">人生观</div><div style="margin-top:12px">目的地</div></div>
+  <div style="width:2px;background:var(--soft)"></div>
+  <div style="text-align:center"><div class="gold" style="font-size:34px;letter-spacing:3px">价值观</div><div style="margin-top:12px">岔路口</div></div>
+ </div>
+</div>
+
+<!-- ============ V2 三观不合 冲突钩子 ============ -->
+<div class="v" id="v2">
+ <svg width="1080" height="1920" viewBox="0 0 1080 1920">
+  <!-- forked road -->
+  <g fill="none" stroke-linecap="round">
+   <path d="M540 1700 C540 1520 540 1420 540 1360" stroke="#2B3039" stroke-width="16"/>
+   <path d="M540 1360 C540 1260 330 1220 200 1080" stroke="#2B3039" stroke-width="14"/>
+   <path d="M540 1360 C540 1260 750 1220 880 1080" stroke="#CDAA6B" stroke-width="14" stroke-opacity=".75"/>
+   <path d="M540 1700 C540 1520 540 1420 540 1360" stroke="#0E1014" stroke-width="3" stroke-dasharray="18 22"/>
+  </g>
+  <circle cx="540" cy="1360" r="14" fill="#CDAA6B"/>
+  <g font-family="Noto Sans SC" font-weight="700" font-size="34" text-anchor="middle">
+   <text x="180" y="1040" fill="#857F74">他的路</text>
+   <text x="900" y="1040" fill="#CDAA6B">你的路</text>
+  </g>
+ </svg>
+ <div class="badge"><b>No.01</b>费曼学习法卡片</div>
+ <div class="serif" style="position:absolute;left:80px;top:400px;font-size:200px;line-height:1.08;letter-spacing:4px">三观<br>不合</div>
+ <div class="serif" style="position:absolute;left:80px;top:840px;font-size:84px;line-height:1.2"><span class="gold">到底哪里</span>不合？</div>
+ <div style="position:absolute;right:170px;top:440px;text-align:right;font:500 36px/1.9 'Noto Sans SC';color:var(--mute)">
+  地图不同？<br>目的地不同？<br><span style="color:var(--ink);font-weight:700">还是取舍不同？</span></div>
+ <div style="position:absolute;left:0;right:0;top:1440px;text-align:center;font:700 44px 'Noto Sans SC';letter-spacing:3px">
+  <span style="border:2px solid var(--gold);padding:14px 30px;border-radius:12px;background:#111317">四步讲透 <span class="gold">世界观·人生观·价值观</span></span></div>
+</div>
+
+<!-- ============ V3 大字结论 + 卡片 ============ -->
+<div class="v" id="v3">
+ <div class="badge"><b>No.01</b>费曼学习法卡片</div>
+ <div style="position:absolute;left:70px;right:70px;top:380px;height:1180px;background:linear-gradient(180deg,#1a1e25,#14171c);border:2px solid #2B3039;border-radius:28px;box-shadow:0 40px 120px rgba(0,0,0,.6)"></div>
+ <div style="position:absolute;left:70px;right:70px;top:380px;height:10px;background:var(--gold);border-radius:28px 28px 0 0"></div>
+ <div style="position:absolute;left:140px;top:460px;font:700 34px 'Noto Sans SC';color:var(--mute);letter-spacing:6px">一句话讲明白</div>
+ <div class="serif" style="position:absolute;left:130px;top:540px;font-size:230px;line-height:1.05">三观</div>
+ <div class="serif" style="position:absolute;left:140px;top:810px;font-size:96px;line-height:1.25">就是你每天<br>都在用的<span class="gold" style="border-bottom:8px solid var(--gold)">导航</span></div>
+ <div style="position:absolute;left:140px;right:140px;top:1110px;height:2px;background:#2B3039"></div>
+ <div style="position:absolute;left:140px;top:1160px;font:500 44px/1.75 'Noto Sans SC'">
+  <span class="gold" style="font-weight:700">世界观</span>　手里的地图<br>
+  <span class="gold" style="font-weight:700">人生观</span>　要去的地方<br>
+  <span class="gold" style="font-weight:700">价值观</span>　岔路口怎么选</div>
+ <div style="position:absolute;left:0;right:0;top:1610px;text-align:center;font:700 40px 'Noto Sans SC';color:var(--ink);letter-spacing:2px">你绝不换的，是什么？</div>
+</div>
+</div>
+<script>const v=(location.hash||'#1').slice(1);document.getElementById('v'+v).style.display='block';</script>
+</body></html>

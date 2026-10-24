@@ -1,0 +1,318 @@
+<!doctype html><html><head><meta charset="utf-8">
+<style>html,body{margin:0;background:#0E1014}canvas{display:block}</style></head>
+<body><canvas id="c" width="1080" height="1920"></canvas>
+<script>
+const C=document.getElementById('c'),X=C.getContext('2d');
+const PAPER='#0E1014',CARD='#161A20',INK='#ECE5D8',RED='#CDAA6B',MUTE='#857F74',SOFT='#2B3039';
+const SANS='"Noto Sans CJK SC"',SERIF='"Noto Serif CJK SC"';
+// ---- timeline (seconds, from voiceover pause detection) ----
+const A={s0:0,s1:4.61,s1b:6.27,s2:10.51,s3:15.91,s3b:16.93,s4:21.07,s4b:23.70,s5:27.03,s5b:29.53,s6:32.01,s6b:34.76,
+ s7:37.86,s7a:38.79,s7b:40.47,s7c:43.95,s8:45.67,s8a:47.28,s8b:48.79,s8c:50.14,s8d:51.40,s9:53.53,s9a:54.52,s9b:56.16,
+ s10:59.68,q1:61.77,q2:63.34,q3:64.63,end:66.57};
+window.DUR=74.5;
+const CUES=[
+[0.00,4.40,'你有没有发现，同一件事，\n两个人看到的，完全不一样？'],
+[4.40,6.22,'区别在三观。'],
+[6.27,10.40,'今天用费曼学习法，\n四步把它讲明白。'],
+[10.51,15.80,'第一步，选一个概念，\n写在纸的最上方：三观。'],
+[15.91,20.95,'第二步，假装讲给\n一个十二岁的孩子听，不许用术语。'],
+[21.07,23.65,'世界观，是你手里的地图。'],
+[23.70,26.95,'世界是什么样，规则怎么运转。'],
+[27.03,29.48,'人生观，是地图上的目的地。'],
+[29.53,31.95,'这一生，你想去哪里。'],
+[32.01,34.70,'价值观，是岔路口的取舍。'],
+[34.76,37.80,'什么能换，什么绝不能换。'],
+[37.86,40.40,'第三步，找卡住的地方。'],
+[40.47,45.60,'讲不顺的那一句，\n就是你还没真懂的地方，回去重新学。'],
+[45.67,48.72,'比如三观不合，\n到底哪里不合？'],
+[48.79,53.45,'是地图不同，目的地不同，\n还是取舍不同？'],
+[53.53,56.08,'第四步，简化成一句话：'],
+[56.16,59.60,'三观，就是你每天都在用的导航。'],
+[59.68,61.70,'今天就问自己三个问题。'],
+[61.77,66.45,'世界怎么运转？我要去哪里？\n我绝不换什么？'],
+[66.57,71.20,'费曼学习法卡片，第一张。\n我们下一张见。']];
+window.CUES=CUES;
+const KEY=['世界观','人生观','价值观','三观','导航','费曼学习法'];
+// sound events
+window.EV=[
+ {t:0.15,type:'pen'},{t:1.4,type:'pop'},{t:2.6,type:'tick'},{t:3.3,type:'tick'},
+ {t:4.85,type:'strike'},{t:5.25,type:'stamp'},{t:6.5,type:'whoosh'},
+ {t:7.4,type:'tick'},{t:7.75,type:'tick'},{t:8.1,type:'tick'},{t:8.45,type:'tick'},
+ {t:10.45,type:'whoosh'},{t:13.9,type:'pen'},{t:15.95,type:'tick'},{t:17.0,type:'pop'},
+ {t:19.0,type:'strike'},{t:19.4,type:'strike'},{t:19.8,type:'strike'},
+ {t:21.1,type:'pen'},{t:27.4,type:'drop'},{t:28.0,type:'pen'},{t:32.3,type:'pen'},{t:35.2,type:'tick'},{t:35.6,type:'tick'},
+ {t:37.9,type:'tick'},{t:38.9,type:'pop'},{t:44.0,type:'pen'},{t:45.7,type:'whoosh'},
+ {t:48.85,type:'pop'},{t:50.2,type:'pop'},{t:51.45,type:'pop'},
+ {t:53.55,type:'tick'},{t:54.6,type:'whoosh'},{t:56.2,type:'stamp'},
+ {t:59.7,type:'whoosh'},{t:61.8,type:'tick'},{t:63.38,type:'tick'},{t:64.67,type:'tick'},
+ {t:66.6,type:'whoosh'},{t:67.6,type:'chime'}];
+
+const cl=(v,a=0,b=1)=>Math.max(a,Math.min(b,v));
+const P=(t,a,b)=>cl((t-a)/(b-a));
+const eo=x=>1-Math.pow(1-x,3);
+const eio=x=>x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2;
+const lerp=(a,b,k)=>a+(b-a)*k;
+function spring(x){if(x<=0)return 0;const w=13,z=0.78,wd=w*Math.sqrt(1-z*z);
+ return 1-Math.exp(-z*w*x)*(Math.cos(wd*x)+z*w/wd*Math.sin(wd*x));}
+function bez(p0,p1,p2,p3,n=64){const r=[];for(let i=0;i<=n;i++){const u=i/n,v=1-u;
+ r.push([v*v*v*p0[0]+3*v*v*u*p1[0]+3*v*u*u*p2[0]+u*u*u*p3[0],v*v*v*p0[1]+3*v*v*u*p1[1]+3*v*u*u*p2[1]+u*u*u*p3[1]]);}return r;}
+function lens(pts){const L=[0];for(let i=1;i<pts.length;i++)L.push(L[i-1]+Math.hypot(pts[i][0]-pts[i-1][0],pts[i][1]-pts[i-1][1]));return L;}
+function stroke(pts,p,w,col,dash,alpha=1){if(p<=0)return;const L=lens(pts),T=L[L.length-1]*cl(p);
+ X.save();X.globalAlpha*=alpha;X.beginPath();X.moveTo(pts[0][0],pts[0][1]);
+ for(let i=1;i<pts.length;i++){if(L[i]<=T)X.lineTo(pts[i][0],pts[i][1]);else{const k=(T-L[i-1])/(L[i]-L[i-1]);
+ X.lineTo(lerp(pts[i-1][0],pts[i][0],k),lerp(pts[i-1][1],pts[i][1],k));break;}}
+ X.lineWidth=w;X.strokeStyle=col;X.lineCap='round';X.lineJoin='round';X.setLineDash(dash||[]);X.stroke();X.restore();}
+function ptAt(pts,p){const L=lens(pts),T=L[L.length-1]*cl(p);for(let i=1;i<pts.length;i++){if(L[i]>=T){const k=(T-L[i-1])/((L[i]-L[i-1])||1);
+ return [lerp(pts[i-1][0],pts[i][0],k),lerp(pts[i-1][1],pts[i][1],k),Math.atan2(pts[i][1]-pts[i-1][1],pts[i][0]-pts[i-1][0])];}}const n=pts.length-1;return [pts[n][0],pts[n][1],0];}
+function circ(cx,cy,r){const a=[];for(let i=0;i<=72;i++){const q=-Math.PI/2+i/72*Math.PI*2;a.push([cx+r*Math.cos(q),cy+r*Math.sin(q)]);}return a;}
+function text(s,x,y,size,col,font=SANS,align='center',weight=500,alpha=1){if(alpha<=0)return;X.save();X.globalAlpha*=alpha;
+ X.font=`${weight} ${size}px ${font}`;X.fillStyle=col;X.textAlign=align;X.textBaseline='alphabetic';X.fillText(s,x,y);X.restore();}
+let VIS=[];
+// mixed text: segments [[str,col],...] centered
+function mixed(segs,cx,y,size,font=SERIF,weight=700,alpha=1,dy=0){if(alpha<=0)return;X.save();X.globalAlpha*=alpha;
+ X.font=`${weight} ${size}px ${font}`;X.textBaseline='alphabetic';X.textAlign='left';
+ const W=segs.reduce((s,g)=>s+X.measureText(g[0]).width,0);let x=cx-W/2;
+ for(const g of segs){X.fillStyle=g[1];X.fillText(g[0],x,y+dy);x+=X.measureText(g[0]).width;}X.restore();
+ VIS.push(segs.map(g=>g[0]).join(''));}
+// in/out envelope for a label: slide up 26px in, slide up out
+function env(t,a,b,din=0.35,dout=0.25){const i=eo(P(t,a,a+din)),o=eo(P(t,b-dout,b));return {a:i*(1-o),dy:(1-i)*26-o*20};}
+
+// ---------- map geometry (map coords, origin center, ±340) ----------
+const M={};
+M.river=bez([-340,-120],[-150,-60],[-60,-260],[120,-160]).concat(bez([120,-160],[260,-80],[220,120],[340,180]).slice(1));
+M.road1=[[-340,70],[340,30]];M.road2=[[-70,-340],[-30,340]];
+M.hill=[circ(-180,190,70),circ(-180,190,45),circ(-180,190,20)];
+M.hill2=[circ(190,-230,85),circ(190,-230,55)];
+M.W=[-250,255];M.F=[-20,40];M.T=[205,-225];M.D=[255,215];
+M.trunk=bez(M.W,[-180,200],[-90,95],M.F);
+M.up=bez(M.F,[60,-30],[150,-120],M.T);
+M.low=bez(M.F,[90,90],[180,170],M.D);
+M.route=M.trunk.concat(M.up.slice(1));
+const MAPC=[500,905],MAPS=0.79;
+
+function pin(x,y,s,col=RED){X.save();X.translate(x,y);X.scale(s,s);X.beginPath();X.moveTo(0,0);
+ X.bezierCurveTo(-30,-38,-34,-58,-34,-74);X.arc(0,-74,34,Math.PI,0);X.bezierCurveTo(34,-58,30,-38,0,0);X.fillStyle=col;X.fill();
+ X.beginPath();X.arc(0,-74,12,0,Math.PI*2);X.fillStyle=CARD;X.fill();X.restore();}
+function arrowHead(x,y,ang,s,col){X.save();X.translate(x,y);X.rotate(ang);X.beginPath();X.moveTo(s,0);X.lineTo(-s*0.8,-s*0.75);X.lineTo(-s*0.35,0);X.lineTo(-s*0.8,s*0.75);X.closePath();X.fillStyle=col;X.fill();X.restore();}
+function tag(s,x,y,col,fill,size=32,alpha=1){if(alpha<=0)return;X.save();X.globalAlpha*=alpha;X.font=`700 ${size}px ${SANS}`;
+ const w=X.measureText(s).width+size*1.0,h=size*1.55;X.beginPath();X.roundRect(x-w/2,y-h/2,w,h,h/2);
+ if(fill){X.fillStyle=col;X.fill();}else{X.fillStyle=CARD;X.fill();X.lineWidth=3;X.strokeStyle=col;X.stroke();}
+ X.fillStyle=fill?CARD:col;X.textAlign='center';X.textBaseline='middle';X.fillText(s,x,y+2);X.restore();VIS.push(s);}
+
+function drawMap(t,k9,k10){
+ // k9: condense to nav icon (0..1), k10: shrink for questions
+ const sc=MAPS*lerp(1,0.66,k9)*lerp(1,0.42,k10);
+ const cx=MAPC[0],cy=lerp(lerp(MAPC[1],860,k9),770,k10);
+ X.save();X.translate(cx,cy);X.scale(sc,sc);
+ const R=lerp(520,300,k9);
+ X.save();X.beginPath();X.arc(0,0,R,0,Math.PI*2);X.clip();
+ const pm=eo(P(t,A.s4+0.05,A.s4+2.2));
+ // frame
+ stroke([[-340,-340],[340,-340],[340,340],[-340,340],[-340,-340]],pm,3,SOFT,null,1-k9);
+ // roads + hills + river
+ const hiR=P(t,A.s8b,A.s8b+0.4)*(1-P(t,A.s9,A.s9+0.6));
+ stroke(M.road1,pm,5,MUTE);stroke(M.road2,pm,5,MUTE);
+ M.hill.forEach((c,i)=>stroke(c,eo(P(t,A.s4+0.4+i*0.15,A.s4+1.8+i*0.15)),3,INK,null,0.55));
+ M.hill2.forEach((c,i)=>stroke(c,eo(P(t,A.s4+0.6+i*0.15,A.s4+2.0+i*0.15)),3,INK,null,0.55));
+ stroke(M.river,pm,hiR>0?lerp(12,16,hiR):12,hiR>0?RED:'#5F7684',null,1);
+ // route trunk + upper (人生观)
+ const pr=eo(P(t,A.s5+0.6,A.s5b+0.9));
+ stroke(M.trunk,pr,7,INK,[2,16]);stroke(M.up,P(pr,0.0,1)*eo(P(t,A.s5+1.2,A.s5b+1.2)),7,INK,[2,16]);
+ // fork lower branch (价值观)
+ const pl=eo(P(t,A.s6+0.3,A.s6+1.6));stroke(M.low,pl,7,INK,[2,16]);
+ // walker 你
+ const wIn=eo(P(t,A.s5+0.2,A.s5+0.6));
+ let wp=M.W;const pnav=eio(P(t,A.s9b-0.6,A.s9b+2.6));
+ if(k9>0)wp=ptAt(M.route,pnav);
+ if(wIn>0){X.save();X.globalAlpha*=wIn;X.beginPath();X.arc(wp[0],wp[1],22,0,Math.PI*2);X.fillStyle=INK;X.fill();X.restore();
+  if(k9<0.5)text('你',wp[0]-48,wp[1]+12,38,INK,SANS,'center',700,wIn*(1-k9*2));}
+ if(wIn>0&&k9<0.3&&t>A.s5+0.6){const fr=((t-A.s5-0.6)/1.8)%1;X.save();X.globalAlpha*=(1-fr)*0.55*(1-k9/0.3);X.beginPath();X.arc(wp[0],wp[1],26+46*eo(fr),0,Math.PI*2);X.lineWidth=4;X.strokeStyle=INK;X.stroke();X.restore();}
+ // nav arrow trail in red
+ if(k9>0){stroke(M.route,pnav,12,RED,null,1);if(pnav>0.02){arrowHead(wp[0],wp[1],wp[2],30,RED);}}
+ // pin drop
+ const pd=spring(t-(A.s5+0.15));
+ if(t>A.s5+0.15){const y=M.T[1]-(1-pd)*320;X.save();X.globalAlpha*=cl(pd*3);pin(M.T[0],y,1.0);X.restore();}
+ // value tags at branches
+ const vt=eo(P(t,A.s6b,A.s6b+0.35)),vt2=eo(P(t,A.s6b+0.45,A.s6b+0.8));
+ if(k9<1){tag('绝不换',95,-125,RED,true,30,vt*(1-k9));tag('能换',150,150,MUTE,false,30,vt2*(1-k9));}
+ // step 3: stuck point at fork + loop back to book
+ const st=eo(P(t,A.s7a,A.s7a+0.4))*(1-P(t,A.s8,A.s8+0.4));
+ if(st>0){X.save();X.globalAlpha*=st;stroke(circ(M.F[0],M.F[1],62),1,5,RED,[14,10]);text('？',M.F[0]+74,M.F[1]-40,64,RED,SERIF,'center',900);X.restore();}
+ const lb=eo(P(t,A.s7c,A.s7c+1.0))*(1-P(t,A.s8,A.s8+0.4));
+ if(lb>0){const loop=bez([M.F[0]-60,M.F[1]-30],[-120,-120],[-200,-170],[-235,-215]);stroke(loop,lb,6,RED);
+  if(lb>0.95){const e=ptAt(loop,1);arrowHead(e[0],e[1],e[2],22,RED);}
+  X.save();X.globalAlpha*=eo(P(t,A.s7c+0.3,A.s7c+0.8))*(1-P(t,A.s8,A.s8+0.4));book(-270,-262);X.restore();}
+ // step 3 example highlights (三观不合)
+ const hp=eo(P(t,A.s8c,A.s8c+0.35))*(1-P(t,A.s9,A.s9+0.5)),hf=eo(P(t,A.s8d,A.s8d+0.35))*(1-P(t,A.s9,A.s9+0.5));
+ if(hp>0)stroke(circ(M.T[0],M.T[1]-55,70),hp,5,RED,[14,10]);
+ if(hf>0)stroke(circ(M.F[0],M.F[1],70),hf,5,RED,[14,10]);
+ X.restore();
+ if(k9>0.4){X.globalAlpha=1;stroke(circ(0,0,R),eo(P(k9,0.4,1)),8,INK);}
+ X.restore();
+}
+function book(x,y){X.save();X.translate(x,y);X.fillStyle=CARD;X.strokeStyle=INK;X.lineWidth=5;X.lineJoin='round';
+ X.beginPath();X.moveTo(0,8);X.lineTo(-56,-6);X.lineTo(-56,50);X.lineTo(0,64);X.lineTo(56,50);X.lineTo(56,-6);X.closePath();X.fill();X.stroke();
+ X.beginPath();X.moveTo(0,8);X.lineTo(0,64);X.stroke();X.restore();}
+
+// ---------- steps tracker ----------
+const STEPS=['一 选概念','二 讲给孩子','三 找卡点','四 简化'];
+function tracker(t){
+ const enter=[7.35,7.7,8.05,8.4];
+ let act=-1;if(t>=A.s2)act=0;if(t>=A.s3)act=1;if(t>=A.s7)act=2;if(t>=A.s9)act=3;if(t>=A.end)act=4;
+ const xs=[175,385,595,805],y=292;
+ for(let i=0;i<4;i++){const e=eo(P(t,enter[i],enter[i]+0.35));if(e<=0)continue;
+  X.save();X.globalAlpha=e;X.translate(0,(1-e)*-30);
+  const w=198,h=62;X.beginPath();X.roundRect(xs[i]-w/2,y-h/2,w,h,h/2);
+  const done=i<act,on=i===act;
+  if(on){X.fillStyle=RED;X.fill();}else{X.fillStyle=PAPER;X.fill();X.lineWidth=3;X.strokeStyle=done?INK:SOFT;X.stroke();}
+  X.font=`700 28px ${SANS}`;X.textAlign='center';X.textBaseline='middle';X.fillStyle=on?CARD:(done?INK:MUTE);
+  X.fillText(done?'✓'+STEPS[i].slice(1):STEPS[i],xs[i],y+2);X.restore();VIS.push(STEPS[i]);}
+}
+
+// ---------- hook: eye + half glass ----------
+function hook(t){
+ const out=eio(P(t,A.s1b+0.1,A.s1b+0.8));if(out>=1)return;
+ X.save();X.globalAlpha=1-out;X.translate(0,-out*160);
+ const ey=lerp(780,700,eio(P(t,A.s1,A.s1+0.5)));
+ const up=bez([180,ey],[330,ey-170],[670,ey-170],[820,ey]),lo=bez([180,ey],[330,ey+170],[670,ey+170],[820,ey]);
+ const pe=eo(P(t,0.1,1.0));stroke(up,pe,9,INK);stroke(lo,pe,9,INK);
+ stroke(circ(500,ey,118),eo(P(t,0.5,1.3)),9,INK);
+ const pp=eo(P(t,1.0,1.4));if(pp>0){X.beginPath();X.arc(500,ey,56*pp,0,Math.PI*2);X.fillStyle=INK;X.fill();
+  X.beginPath();X.arc(522,ey-22,14*pp,0,Math.PI*2);X.fillStyle=CARD;X.fill();}
+ // half glass (同一件事)
+ const g=eo(P(t,1.2,1.7))*(1-eio(P(t,A.s1,A.s1+0.4)));
+ if(g>0){X.save();X.globalAlpha*=g;X.translate(500,lerp(470,440,g));
+  X.beginPath();X.moveTo(-52,40);X.lineTo(52,40);X.lineTo(66,-110);X.lineTo(-66,-110);X.closePath();X.fillStyle=CARD;X.fill();
+  X.beginPath();X.moveTo(-52,40);X.lineTo(52,40);X.lineTo(59,-35);X.lineTo(-59,-35);X.closePath();X.fillStyle='#4E6573';X.fill();
+  X.beginPath();X.moveTo(-52,40);X.lineTo(52,40);X.lineTo(66,-110);X.moveTo(-52,40);X.lineTo(-66,-110);X.lineWidth=7;X.strokeStyle=INK;X.lineCap='round';X.stroke();
+  X.restore();}
+ const a1=eo(P(t,2.55,2.9))*(1-eio(P(t,A.s1,A.s1+0.4))),a2=eo(P(t,3.25,3.6))*(1-eio(P(t,A.s1,A.s1+0.4)));
+ if(a1>0){stroke([[400,ey+150],[300,ey+250]],a1,5,INK);tag('一个人：半满',270,ey+300,INK,false,36,a1);}
+ if(a2>0){stroke([[600,ey+150],[700,ey+250]],a2,5,RED);tag('另一个：半空',720,ey+300,RED,false,36,a2);}
+ // strike + stamp
+ const sk=eo(P(t,4.8,5.05));if(sk>0)stroke([[200,ey-150],[800,ey+150]],sk,10,RED);
+ const st=P(t,5.2,5.5);if(st>0){const s=lerp(1.35,1,eo(st));X.save();X.translate(500,1080);X.scale(s,s);
+  text('三观',0,70,230,RED,SERIF,'center',900,cl(st*2));X.restore();VIS.push('三观');}
+ X.restore();
+}
+// ---------- title "费曼学习法 · 四步" ----------
+function title(t){
+ const i=eo(P(t,A.s1b+0.3,A.s1b+0.9)),o=eio(P(t,A.s2-0.25,A.s2+0.35));if(i<=0||o>=1)return;
+ X.save();X.globalAlpha=i*(1-o);
+ text('今天的方法',500,620+(1-i)*30,44,MUTE,SANS,'center',500);
+ text('费曼学习法',500,790+(1-i)*30,130,INK,SERIF,'center',900);
+ const f=eo(P(t,8.2,8.7));text('四步，把三观讲明白',500,930+(1-f)*24,56,RED,SERIF,'center',700,f);
+ X.restore();VIS.push('费曼学习法');
+}
+// ---------- the Feynman card ----------
+function card(t){
+ const ci=eio(P(t,A.s2-0.15,A.s2+0.75)),co=eio(P(t,A.end,A.end+0.7));if(ci<=0||co>=1)return;
+ const x0=lerp(320,130,ci),x1=lerp(680,870,ci),y0=lerp(720,380,ci)-co*220,y1=lerp(900,1205,ci)-co*220;
+ X.save();X.globalAlpha=1-co;
+ const z=1+0.035*eio(P(t,A.s2+1,A.s9a))-0.02*eio(P(t,A.s9a,A.s10+1));X.translate(500,800);X.scale(z,z);X.translate(-500,-800);
+ X.fillStyle='rgba(0,0,0,0.45)';X.beginPath();X.roundRect(x0+10,y0+14,x1-x0,y1-y0,22);X.fill();
+ X.fillStyle=CARD;X.beginPath();X.roundRect(x0,y0,x1-x0,y1-y0,22);X.fill();X.lineWidth=3;X.strokeStyle=SOFT;X.stroke();
+ if(ci<0.98){X.restore();return;}
+ X.translate(0,-co*220);
+ // header
+ text('费曼卡片 No.01',170,440,30,MUTE,SANS,'left',500);
+ text('作者自我认知',830,440,30,MUTE,SANS,'right',500);
+ // ruled lines
+ X.strokeStyle='#1E232B';X.lineWidth=2;for(let y=560;y<1190;y+=70){X.beginPath();X.moveTo(160,y);X.lineTo(840,y);X.stroke();}
+ // concept line
+ text('概念',170,512,36,INK,SANS,'left',700);
+ X.strokeStyle=INK;X.lineWidth=3;X.beginPath();X.moveTo(160,535);X.lineTo(840,535);X.stroke();
+ const w=P(t,13.95,14.9);if(w>0){X.save();X.beginPath();X.rect(250,440,eo(w)*260,110);X.clip();text('三观',260,522,78,RED,SERIF,'left',900);X.restore();VIS.push('三观');}
+ const hint=env(t,A.s2+0.6,13.95);if(hint.a>0)text('↑ 写在最上方',520,512+hint.dy,34,MUTE,SANS,'left',500,hint.a);
+ // body by scene
+ body(t);
+ X.restore();
+}
+function label(t,a,b,segs){const e=env(t,a,b);if(e.a>0)mixed(segs,500,618,48,SERIF,700,e.a,e.dy);}
+function body(t){
+ // step 1 body: big empty card cue
+ const s1=env(t,A.s2+0.9,A.s3);
+ if(s1.a>0){text('一张纸，只写一个概念',500,860+s1.dy,44,MUTE,SERIF,'center',700,s1.a);}
+ // step 2 intro: child + struck jargon
+ const s2=env(t,A.s3b-0.1,A.s4+0.1);
+ if(s2.a>0){X.save();X.globalAlpha*=s2.a;X.translate(0,s2.dy);
+  const cy=880;X.beginPath();X.arc(330,cy-70,48,0,Math.PI*2);X.fillStyle=INK;X.fill();
+  X.beginPath();X.roundRect(270,cy-10,120,150,40);X.fill();
+  tag('十二岁',330,cy+190,RED,true,32,1);
+  const words=['认识论','意识形态','价值体系'];
+  words.forEach((wd,i)=>{const yy=740+i*130,e=eo(P(t,17.9+i*0.3,18.3+i*0.3));if(e>0){tag(wd,640,yy,MUTE,false,36,e);
+   const sk=eo(P(t,19.0+i*0.4,19.25+i*0.4));if(sk>0)stroke([[560,yy+6],[720,yy-6]],sk,6,RED);}});
+  X.restore();}
+ label(t,A.s3b-0.1,A.s4+0.1,[['不许用',INK],['术语',RED]]);
+ label(t,A.s4,A.s5,[['世界观',RED],[' ＝ 地图',INK]]);
+ label(t,A.s5,A.s6,[['人生观',RED],[' ＝ 目的地',INK]]);
+ label(t,A.s6,A.s7,[['价值观',RED],[' ＝ 取舍',INK]]);
+ label(t,A.s7a,A.s8,[['讲不顺',RED],[' ＝ 还没真懂',INK]]);
+ label(t,A.s8,A.s8b,[['三观不合，',INK],['哪里不合？',RED]]);
+ // chips for the three differences
+ const ch=[['地图不同？',258,A.s8b],['目的地不同？',500,A.s8c],['取舍不同？',742,A.s8d]];
+ const chOut=P(t,A.s9,A.s9+0.3);
+ ch.forEach(c=>{const e=eo(P(t,c[2],c[2]+0.3))*(1-chOut);if(e>0)tag(c[0],c[1],600+(1-e)*20,RED,false,28,e);});
+ label(t,A.s9a,A.s9b-0.05,[['简化成',INK],['一句话',RED]]);
+ // map (worldview onwards)
+ if(t>=A.s4&&t<A.end+0.8){
+  const k9=eio(P(t,A.s9a,A.s9a+1.2)),k10=eio(P(t,A.s10,A.s10+0.8));
+  X.save();if(t<A.s4+0.01)X.globalAlpha=0;drawMap(t,k9,k10);X.restore();}
+ // one-sentence
+ const os=env(t,A.s9b,A.s10+0.1,0.3,0.3);
+ if(os.a>0){const s=lerp(1.2,1,eo(P(t,A.s9b,A.s9b+0.3)));X.save();X.translate(500,1145);X.scale(s,s);X.translate(-500,-1145);
+  mixed([['三观',RED],[' ＝ 导航',INK]],500,1150,70,SERIF,900,os.a,os.dy);X.restore();}
+ // three questions
+ const qh=env(t,A.s10+0.4,A.end+0.6);
+ if(qh.a>0)mixed([['问自己',INK],['三个问题',RED]],500,640+qh.dy,52,SERIF,900,qh.a);
+ const qs=[['世界怎么运转？',A.q1],['我要去哪里？',A.q2],['我绝不换什么？',A.q3]];
+ qs.forEach((q,i)=>{const e=eo(P(t,q[1]-0.05,q[1]+0.3))*(1-P(t,A.end,A.end+0.5));if(e<=0)return;const y=960+i*95;
+  X.save();X.globalAlpha*=e;X.translate((1-e)*-30,0);
+  X.beginPath();X.arc(250,y-17,30,0,Math.PI*2);X.fillStyle=RED;X.fill();
+  text(['一','二','三'][i],250,y-4,34,CARD,SANS,'center',900);
+  text(q[0],305,y,50,INK,SERIF,'left',700);X.restore();VIS.push(q[0]);});
+}
+// ---------- end card ----------
+function endcard(t){
+ const e=(d)=>eo(P(t,A.end+0.5+d,A.end+1.0+d));
+ if(t<A.end+0.5)return;
+ const a=e(0),b=e(0.25),c=e(0.6),d=e(0.9);
+ text('费曼学习法卡片',500,600+(1-a)*30,92,INK,SERIF,'center',900,a);
+ text('01 · 三观',500,700+(1-b)*30,60,RED,SERIF,'center',700,b);
+ if(b>0){X.save();X.globalAlpha=b;X.fillStyle=SOFT;X.fillRect(300,760,400,3);X.restore();}
+ text('出处：作者自我认知（Shaomanman）',500,860+(1-c)*24,38,INK,SANS,'center',500,c);
+ text('许可：CC BY 4.0（署名 4.0 国际）',500,925+(1-c)*24,38,INK,SANS,'center',500,c);
+ text('creativecommons.org/licenses/by/4.0',500,982+(1-c)*24,28,MUTE,SANS,'center',500,c);
+ text('配乐：ACE-Step 1.5 本地生成（MIT）· 配音：ElevenLabs Brian',500,1040+(1-c)*24,26,MUTE,SANS,'center',500,c);
+ text('下一张卡片见',500,1150+(1-d)*24,58,RED,SERIF,'center',900,d);
+ if(a>0)VIS.push('费曼学习法卡片','出处：作者自我认知（Shaomanman）','许可：CC BY 4.0');
+}
+// ---------- subtitles (1300–1480px band, x within 60–920) ----------
+function subs(t){
+ for(const c of CUES){if(t<c[0]||t>=c[1])continue;
+  const lines=c[2].split('\n');const e=eo(P(t,c[0],c[0]+0.15));
+  const size=50,lh=74,base=lines.length===1?1410:1374;
+  lines.forEach((ln,i)=>{const y=base+i*lh+(1-e)*8;
+   // split into key-highlight segments
+   const segs=[];let s=ln;while(s.length){let hit=null,idx=1e9;for(const k of KEY){const j=s.indexOf(k);if(j>=0&&j<idx){idx=j;hit=k;}}
+    if(!hit){segs.push([s,INK]);break;}if(idx>0)segs.push([s.slice(0,idx),INK]);segs.push([hit,RED]);s=s.slice(idx+hit.length);}
+   X.save();X.globalAlpha=e;X.font=`700 ${size}px ${SANS}`;X.textBaseline='alphabetic';
+   const W=segs.reduce((q,g)=>q+X.measureText(g[0]).width,0);let x=490-W/2;
+   for(const g of segs){X.lineWidth=10;X.strokeStyle=PAPER;X.lineJoin='round';X.strokeText(g[0],x,y);X.fillStyle=g[1];X.fillText(g[0],x,y);x+=X.measureText(g[0]).width;}
+   X.restore();});
+  VIS.push('SUB:'+c[2]);}
+}
+// ---------- paper grain (deterministic) ----------
+let GRAIN=null;
+function makeGrain(){const g=document.createElement('canvas');g.width=g.height=256;const q=g.getContext('2d');const d=q.createImageData(256,256);
+ let s=12345;const r=()=>(s=(s*1103515245+12345)&0x7fffffff)/0x7fffffff;
+ for(let i=0;i<d.data.length;i+=4){const v=r()*255;d.data[i]=d.data[i+1]=d.data[i+2]=v;d.data[i+3]=7;}q.putImageData(d,0,0);GRAIN=X.createPattern(g,'repeat');}
+window.render=function(t){VIS=[];X.setTransform(1,0,0,1,0,0);X.globalAlpha=1;
+ const bg=X.createRadialGradient(500,760,80,500,860,1250);bg.addColorStop(0,'#171B22');bg.addColorStop(1,'#08090C');X.fillStyle=bg;X.fillRect(0,0,1080,1920);X.fillStyle=GRAIN;X.fillRect(0,0,1080,1920);
+ hook(t);title(t);card(t);tracker(t);endcard(t);subs(t);};
+window.TEXTS=function(t){render(t);return VIS.slice();};
+window.SAFE=false;
+window.READY=false;
+Promise.all([document.fonts.load(`900 40px ${SERIF}`,'三观费曼'),document.fonts.load(`700 40px ${SERIF}`,'三观'),document.fonts.load(`500 40px ${SANS}`,'三观'),document.fonts.load(`700 40px ${SANS}`,'三观')])
+ .then(()=>{makeGrain();render(0);window.READY=true;});
+</script></body></html>

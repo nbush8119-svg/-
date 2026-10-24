@@ -1,0 +1,35 @@
+# 字体体积大（每个 16–27MB），用 scripts/fetch_fonts.sh 下载
+**/fonts/*.otf
+**/fonts/*.ttc
+**/fonts/*.ttf
+**/_fonts/
+
+# 渲染中间产物，可重新生成
+**/work/frames/
+**/work/stills/
+**/work/chk/
+**/work/*.wav
+**/work/x264-*.log*
+**/work/*.log
+**/out/lines/
+**/out/music/*.wav
+**/out/DONE
+
+# 旁白参考音频（ElevenLabs 音色，不入库，见 docs/mac-environment.md）
+voices/
+narrator.wav
+
+# 绝不提交登录态、Cookie、密钥
+.env
+*.cookie
+*.cookies
+cookies*.json
+**/chrome-profile/
+**/.boss-chrome-profile/
+
+# 系统 / 依赖
+.DS_Store
+node_modules/
+__pycache__/
+*.pyc
+.venv/
