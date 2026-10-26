@@ -46,7 +46,7 @@ scripts/fetch_fonts.sh    下载 Noto CJK 字体（字体不入库）
 
 ## 做一张新卡的最短路径
 
-1. 在 `cards/tree.yaml` 里确定发布号、树码、上级；在 `cards/` 写口播稿（费曼四步结构，见 `docs/series-plan.md`「每集统一格式」）。
+1. 在 `cards/tree.yaml` 里确定发布号、树码、上级；在 `cards/` 写口播稿（2026-10-26 起用七步结构：定主题 → 各种说法 → 我的理解 → 讲给没读过多少书的人听 → 对方哪里没懂 → 换更准的比喻重新理解 → 讨论话题 + 预告下一集，见 `docs/series-plan.md`「每集统一格式」）。
 2. 复制 `episodes/02-philosophy/` 为 `episodes/NN-<slug>/`，改 `feynmanNN_make.py` 里的 `LINES` 和配乐 caption，改 `kit/index.html` 的画面。
 3. 在用户 Mac 上按 `docs/production-pipeline.md` 跑：配音 + 回检 → 配乐 3 首候选 → 用户选 → 剪接对齐 → 混音 → 渲染 → 压制 → 自检。
 4. 用 `templates/cover/` 做卡片风格封面。

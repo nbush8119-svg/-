@@ -1,0 +1,73 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+@font-face{font-family:"Noto Sans CJK SC";font-weight:500;src:url(fonts/NotoSansCJKsc-Medium.otf)}
+@font-face{font-family:"Noto Sans CJK SC";font-weight:700;src:url(fonts/NotoSansCJKsc-Bold.otf)}
+@font-face{font-family:"Noto Sans CJK SC";font-weight:900;src:url(fonts/NotoSansCJKsc-Black.otf)}
+@font-face{font-family:"Noto Serif CJK SC";font-weight:100 900;src:url(fonts/NotoSerifCJKsc-Black.otf)}
+html,body{margin:0;background:#0E1014}canvas{display:block}
+</style></head>
+<body><canvas id="c" width="1080" height="1920"></canvas>
+<script src="timings.js"></script>
+<script>
+// 费曼学习法卡片 05 · 机器学习（B7.2）—— 沿用卡片01/02的画面语法与配色；时间轴全部来自 timings.js（配音实测）
+const C=document.getElementById('c'),X=C.getContext('2d');
+const PAPER='#0E1014',CARD='#161A20',INK='#ECE5D8',RED='#CDAA6B',MUTE='#857F74',SOFT='#2B3039';
+const SANS='"Noto Sans CJK SC"',SERIF='"Noto Serif CJK SC"';
+// ---- timeline ----
+const TM={};for(const r of window.TIMINGS)TM[r.id]=r;
+const S=id=>TM[id].start,E=id=>TM[id].end;
+// time where the n-th occurrence of ch inside line id is spoken (char-proportional)
+function at(id,ch,n=1){const r=TM[id],s=r.text;let i=-1;for(let k=0;k<n;k++)i=s.indexOf(ch,i+1);if(i<0)return r.end;
+ return r.start+(r.end-r.start)*(i+1)/s.length;}
+const A={end:S('L21')};
+window.DUR=E('L21')+4.6;
+// subtitles: one cue per sentence, wrapped to ≤2 lines at a punctuation mark near the middle
+function wrap(s){const n=s.length;if(n<=15)return s;const k=n>30?3:2;const P0=[];for(let i=3;i<n-3;i++)if('，。？：；、'.includes(s[i]))P0.push(i+1);
+ const lines=b=>{const c=[0,...b,n];return Math.max(...c.slice(1).map((v,i)=>v-c[i]));};let best=null;
+ if(k===2){for(const a of P0){const m=lines([a]);if(!best||m<best[0])best=[m,[a]];}}
+ else{for(const a of P0)for(const b of P0)if(b>a){const m=lines([a,b]);if(!best||m<best[0])best=[m,[a,b]];}}
+ if(!best||best[0]>20){const all=[];for(let i=4;i<n-3;i++)all.push(i);const keep=best;best=null;
+  for(const x of all)for(const y of all)if(y>x+3){const m=lines([x,y]);const pen=(P0.includes(x)?0:2)+(P0.includes(y)?0:2);if(!best||m+pen<best[0])best=[m+pen,[x,y]];}if(!best)best=keep;}
+ if(!best)best=[0,[Math.ceil(n/2)]];const c=[0,...best[1],n];return c.slice(1).map((v,i)=>s.slice(c[i],v)).join('\n');}
+const CUES=window.TIMINGS.map((r,i,a)=>[r.start-0.05,i+1<a.length?Math.min(a[i+1].start-0.05,r.end+0.9):r.end+1.8,wrap(r.text)]);
+window.CUES=CUES;
+const KEY=['费曼学习法','机器学习','规则','例子','规律','模型','改一点点','沙发'];
+window.EV=[];const ev=(t,type)=>window.EV.push({t:+t.toFixed(3),type});
+
+const cl=(v,a=0,b=1)=>Math.max(a,Math.min(b,v));
+const P=(t,a,b)=>cl((t-a)/(b-a));
+const eo=x=>1-Math.pow(1-x,3);
+const eio=x=>x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2;
+const lerp=(a,b,k)=>a+(b-a)*k;
+function spring(x){if(x<=0)return 0;const w=13,z=0.78,wd=w*Math.sqrt(1-z*z);
+ return 1-Math.exp(-z*w*x)*(Math.cos(wd*x)+z*w/wd*Math.sin(wd*x));}
+function bez(p0,p1,p2,p3,n=64){const r=[];for(let i=0;i<=n;i++){const u=i/n,v=1-u;
+ r.push([v*v*v*p0[0]+3*v*v*u*p1[0]+3*v*u*u*p2[0]+u*u*u*p3[0],v*v*v*p0[1]+3*v*v*u*p1[1]+3*v*u*u*p2[1]+u*u*u*p3[1]]);}return r;}
+function lens(pts){const L=[0];for(let i=1;i<pts.length;i++)L.push(L[i-1]+Math.hypot(pts[i][0]-pts[i-1][0],pts[i][1]-pts[i-1][1]));return L;}
+function stroke(pts,p,w,col,dash,alpha=1){if(p<=0)return;const L=lens(pts),T=L[L.length-1]*cl(p);
+ X.save();X.globalAlpha*=alpha;X.beginPath();X.moveTo(pts[0][0],pts[0][1]);
+ for(let i=1;i<pts.length;i++){if(L[i]<=T)X.lineTo(pts[i][0],pts[i][1]);else{const k=(T-L[i-1])/(L[i]-L[i-1]);
+ X.lineTo(lerp(pts[i-1][0],pts[i][0],k),lerp(pts[i-1][1],pts[i][1],k));break;}}
+ X.lineWidth=w;X.strokeStyle=col;X.lineCap='round';X.lineJoin='round';X.setLineDash(dash||[]);X.stroke();X.restore();}
+function ptAt(pts,p){const L=lens(pts),T=L[L.length-1]*cl(p);for(let i=1;i<pts.length;i++){if(L[i]>=T){const k=(T-L[i-1])/((L[i]-L[i-1])||1);
+ return [lerp(pts[i-1][0],pts[i][0],k),lerp(pts[i-1][1],pts[i][1],k),Math.atan2(pts[i][1]-pts[i-1][1],pts[i][0]-pts[i-1][0])];}}const n=pts.length-1;return [pts[n][0],pts[n][1],0];}
+function circ(cx,cy,r){const a=[];for(let i=0;i<=72;i++){const q=-Math.PI/2+i/72*Math.PI*2;a.push([cx+r*Math.cos(q),cy+r*Math.sin(q)]);}return a;}
+function text(s,x,y,size,col,font=SANS,align='center',weight=500,alpha=1){if(alpha<=0)return;X.save();X.globalAlpha*=alpha;
+ X.font=`${weight} ${size}px ${font}`;X.fillStyle=col;X.textAlign=align;X.textBaseline='alphabetic';X.fillText(s,x,y);X.restore();VIS.push(s);}
+let VIS=[];
+function mixed(segs,cx,y,size,font=SERIF,weight=700,alpha=1,dy=0){if(alpha<=0)return;X.save();X.globalAlpha*=alpha;
+ X.font=`${weight} ${size}px ${font}`;X.textBaseline='alphabetic';X.textAlign='left';
+ const W=segs.reduce((s,g)=>s+X.measureText(g[0]).width,0);let x=cx-W/2;
+ for(const g of segs){X.fillStyle=g[1];X.fillText(g[0],x,y+dy);x+=X.measureText(g[0]).width;}X.restore();
+ VIS.push(segs.map(g=>g[0]).join(''));}
+function env(t,a,b,din=0.35,dout=0.25){const i=eo(P(t,a,a+din)),o=eo(P(t,b-dout,b));return {a:i*(1-o),dy:(1-i)*26-o*20};}
+function arrowHead(x,y,ang,s,col){X.save();X.translate(x,y);X.rotate(ang);X.beginPath();X.moveTo(s,0);X.lineTo(-s*0.8,-s*0.75);X.lineTo(-s*0.35,0);X.lineTo(-s*0.8,s*0.75);X.closePath();X.fillStyle=col;X.fill();X.restore();}
+function tag(s,x,y,col,fill,size=32,alpha=1){if(alpha<=0)return;X.save();X.globalAlpha*=alpha;X.font=`700 ${size}px ${SANS}`;
+ const w=X.measureText(s).width+size*1.0,h=size*1.55;X.beginPath();X.roundRect(x-w/2,y-h/2,w,h,h/2);
+ if(fill){X.fillStyle=col;X.fill();}else{X.fillStyle=CARD;X.fill();X.lineWidth=3;X.strokeStyle=col;X.stroke();}
+ X.fillStyle=fill?CARD:col;X.textAlign='center';X.textBaseline='middle';X.fillText(s,x,y+2);X.restore();VIS.push(s);}
+function pin(x,y,s,col=RED){X.save();X.translate(x,y);X.scale(s,s);X.beginPath();X.moveTo(0,0);
+ X.bezierCurveTo(-30,-38,-34,-58,-34,-74);X.arc(0,-74,34,Math.PI,0);X.bezierCurveTo(34,-58,30,-38,0,0);X.fillStyle=col;X.fill();
+ X.beginPath();X.arc(0,-74,12,0,Math.PI*2);X.fillStyle=CARD;X.fill();X.restore();}
+

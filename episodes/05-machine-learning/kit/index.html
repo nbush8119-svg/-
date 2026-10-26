@@ -1,0 +1,432 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<style>
+@font-face{font-family:"Noto Sans CJK SC";font-weight:500;src:url(fonts/NotoSansCJKsc-Medium.otf)}
+@font-face{font-family:"Noto Sans CJK SC";font-weight:700;src:url(fonts/NotoSansCJKsc-Bold.otf)}
+@font-face{font-family:"Noto Sans CJK SC";font-weight:900;src:url(fonts/NotoSansCJKsc-Black.otf)}
+@font-face{font-family:"Noto Serif CJK SC";font-weight:100 900;src:url(fonts/NotoSerifCJKsc-Black.otf)}
+html,body{margin:0;background:#0E1014}canvas{display:block}
+</style></head>
+<body><canvas id="c" width="1080" height="1920"></canvas>
+<script src="timings.js"></script>
+<script>
+// 费曼学习法卡片 05 · 机器学习（B7.2）—— 沿用卡片01/02的画面语法与配色；时间轴全部来自 timings.js（配音实测）
+const C=document.getElementById('c'),X=C.getContext('2d');
+const PAPER='#0E1014',CARD='#161A20',INK='#ECE5D8',RED='#CDAA6B',MUTE='#857F74',SOFT='#2B3039';
+const SANS='"Noto Sans CJK SC"',SERIF='"Noto Serif CJK SC"';
+// ---- timeline ----
+const TM={};for(const r of window.TIMINGS)TM[r.id]=r;
+const S=id=>TM[id].start,E=id=>TM[id].end;
+// time where the n-th occurrence of ch inside line id is spoken (char-proportional)
+function at(id,ch,n=1){const r=TM[id],s=r.text;let i=-1;for(let k=0;k<n;k++)i=s.indexOf(ch,i+1);if(i<0)return r.end;
+ return r.start+(r.end-r.start)*(i+1)/s.length;}
+const A={end:S('L21')};
+window.DUR=E('L21')+4.6;
+// subtitles: one cue per sentence, wrapped to ≤2 lines at a punctuation mark near the middle
+function wrap(s){const n=s.length;if(n<=15)return s;const k=n>30?3:2;const P0=[];for(let i=3;i<n-3;i++)if('，。？：；、'.includes(s[i]))P0.push(i+1);
+ const lines=b=>{const c=[0,...b,n];return Math.max(...c.slice(1).map((v,i)=>v-c[i]));};let best=null;
+ if(k===2){for(const a of P0){const m=lines([a]);if(!best||m<best[0])best=[m,[a]];}}
+ else{for(const a of P0)for(const b of P0)if(b>a){const m=lines([a,b]);if(!best||m<best[0])best=[m,[a,b]];}}
+ if(!best||best[0]>20){const all=[];for(let i=4;i<n-3;i++)all.push(i);const keep=best;best=null;
+  for(const x of all)for(const y of all)if(y>x+3){const m=lines([x,y]);const pen=(P0.includes(x)?0:2)+(P0.includes(y)?0:2);if(!best||m+pen<best[0])best=[m+pen,[x,y]];}if(!best)best=keep;}
+ if(!best)best=[0,[Math.ceil(n/2)]];const c=[0,...best[1],n];return c.slice(1).map((v,i)=>s.slice(c[i],v)).join('\n');}
+const CUES=window.TIMINGS.map((r,i,a)=>[r.start-0.05,i+1<a.length?Math.min(a[i+1].start-0.05,r.end+0.9):r.end+1.8,wrap(r.text)]);
+window.CUES=CUES;
+const KEY=['费曼学习法','机器学习','规则','例子','规律','模型','改一点点','沙发'];
+window.EV=[];const ev=(t,type)=>window.EV.push({t:+t.toFixed(3),type});
+
+const cl=(v,a=0,b=1)=>Math.max(a,Math.min(b,v));
+const P=(t,a,b)=>cl((t-a)/(b-a));
+const eo=x=>1-Math.pow(1-x,3);
+const eio=x=>x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2;
+const lerp=(a,b,k)=>a+(b-a)*k;
+function spring(x){if(x<=0)return 0;const w=13,z=0.78,wd=w*Math.sqrt(1-z*z);
+ return 1-Math.exp(-z*w*x)*(Math.cos(wd*x)+z*w/wd*Math.sin(wd*x));}
+function bez(p0,p1,p2,p3,n=64){const r=[];for(let i=0;i<=n;i++){const u=i/n,v=1-u;
+ r.push([v*v*v*p0[0]+3*v*v*u*p1[0]+3*v*u*u*p2[0]+u*u*u*p3[0],v*v*v*p0[1]+3*v*v*u*p1[1]+3*v*u*u*p2[1]+u*u*u*p3[1]]);}return r;}
+function lens(pts){const L=[0];for(let i=1;i<pts.length;i++)L.push(L[i-1]+Math.hypot(pts[i][0]-pts[i-1][0],pts[i][1]-pts[i-1][1]));return L;}
+function stroke(pts,p,w,col,dash,alpha=1){if(p<=0)return;const L=lens(pts),T=L[L.length-1]*cl(p);
+ X.save();X.globalAlpha*=alpha;X.beginPath();X.moveTo(pts[0][0],pts[0][1]);
+ for(let i=1;i<pts.length;i++){if(L[i]<=T)X.lineTo(pts[i][0],pts[i][1]);else{const k=(T-L[i-1])/(L[i]-L[i-1]);
+ X.lineTo(lerp(pts[i-1][0],pts[i][0],k),lerp(pts[i-1][1],pts[i][1],k));break;}}
+ X.lineWidth=w;X.strokeStyle=col;X.lineCap='round';X.lineJoin='round';X.setLineDash(dash||[]);X.stroke();X.restore();}
+function ptAt(pts,p){const L=lens(pts),T=L[L.length-1]*cl(p);for(let i=1;i<pts.length;i++){if(L[i]>=T){const k=(T-L[i-1])/((L[i]-L[i-1])||1);
+ return [lerp(pts[i-1][0],pts[i][0],k),lerp(pts[i-1][1],pts[i][1],k),Math.atan2(pts[i][1]-pts[i-1][1],pts[i][0]-pts[i-1][0])];}}const n=pts.length-1;return [pts[n][0],pts[n][1],0];}
+function circ(cx,cy,r){const a=[];for(let i=0;i<=72;i++){const q=-Math.PI/2+i/72*Math.PI*2;a.push([cx+r*Math.cos(q),cy+r*Math.sin(q)]);}return a;}
+function text(s,x,y,size,col,font=SANS,align='center',weight=500,alpha=1){if(alpha<=0)return;X.save();X.globalAlpha*=alpha;
+ X.font=`${weight} ${size}px ${font}`;X.fillStyle=col;X.textAlign=align;X.textBaseline='alphabetic';X.fillText(s,x,y);X.restore();VIS.push(s);}
+let VIS=[];
+function mixed(segs,cx,y,size,font=SERIF,weight=700,alpha=1,dy=0){if(alpha<=0)return;X.save();X.globalAlpha*=alpha;
+ X.font=`${weight} ${size}px ${font}`;X.textBaseline='alphabetic';X.textAlign='left';
+ const W=segs.reduce((s,g)=>s+X.measureText(g[0]).width,0);let x=cx-W/2;
+ for(const g of segs){X.fillStyle=g[1];X.fillText(g[0],x,y+dy);x+=X.measureText(g[0]).width;}X.restore();
+ VIS.push(segs.map(g=>g[0]).join(''));}
+function env(t,a,b,din=0.35,dout=0.25){const i=eo(P(t,a,a+din)),o=eo(P(t,b-dout,b));return {a:i*(1-o),dy:(1-i)*26-o*20};}
+function arrowHead(x,y,ang,s,col){X.save();X.translate(x,y);X.rotate(ang);X.beginPath();X.moveTo(s,0);X.lineTo(-s*0.8,-s*0.75);X.lineTo(-s*0.35,0);X.lineTo(-s*0.8,s*0.75);X.closePath();X.fillStyle=col;X.fill();X.restore();}
+function tag(s,x,y,col,fill,size=32,alpha=1){if(alpha<=0)return;X.save();X.globalAlpha*=alpha;X.font=`700 ${size}px ${SANS}`;
+ const w=X.measureText(s).width+size*1.0,h=size*1.55;X.beginPath();X.roundRect(x-w/2,y-h/2,w,h,h/2);
+ if(fill){X.fillStyle=col;X.fill();}else{X.fillStyle=CARD;X.fill();X.lineWidth=3;X.strokeStyle=col;X.stroke();}
+ X.fillStyle=fill?CARD:col;X.textAlign='center';X.textBaseline='middle';X.fillText(s,x,y+2);X.restore();VIS.push(s);}
+function pin(x,y,s,col=RED){X.save();X.translate(x,y);X.scale(s,s);X.beginPath();X.moveTo(0,0);
+ X.bezierCurveTo(-30,-38,-34,-58,-34,-74);X.arc(0,-74,34,Math.PI,0);X.bezierCurveTo(34,-58,30,-38,0,0);X.fillStyle=col;X.fill();
+ X.beginPath();X.arc(0,-74,12,0,Math.PI*2);X.fillStyle=CARD;X.fill();X.restore();}
+
+function blk(s,x,y,col,alpha=1,size=56,fill=CARD,w0=0){if(alpha<=0)return;X.save();X.globalAlpha*=alpha;X.font=`900 ${size}px ${SERIF}`;
+ const w=Math.max(w0,X.measureText(s).width+size*0.9),h=size*1.7;X.beginPath();X.roundRect(x-w/2,y-h/2,w,h,16);
+ X.fillStyle=fill;X.fill();X.lineWidth=4;X.strokeStyle=col;X.stroke();
+ X.fillStyle=fill===CARD?col:CARD;X.textAlign='center';X.textBaseline='middle';X.fillText(s,x,y+3);X.restore();VIS.push(s);return w;}
+function bubble(x,y,w,h,alpha,col=SOFT,tailLeft=true){if(alpha<=0)return;X.save();X.globalAlpha*=alpha;X.fillStyle=col;X.beginPath();X.roundRect(x-w/2,y-h/2,w,h,28);X.fill();
+ X.beginPath();const tx=tailLeft?x-w/2+60:x+w/2-60;X.moveTo(tx-16,y+h/2-4);X.lineTo(tx+(tailLeft?-34:34),y+h/2+30);X.lineTo(tx+20,y+h/2-4);X.fill();X.restore();}
+// ================= 小图标：猫、狗、杯子、球、沙发、书、显示器 =================
+function cat(x,y,s,col=INK,alpha=1){if(alpha<=0)return;X.save();X.globalAlpha*=alpha;X.translate(x,y);X.scale(s,s);X.fillStyle=col;
+ // 身体 + 尾巴
+ X.beginPath();X.ellipse(0,52,44,34,0,0,Math.PI*2);X.fill();
+ X.strokeStyle=col;X.lineWidth=10;X.lineCap='round';X.beginPath();X.moveTo(40,62);X.quadraticCurveTo(82,58,70,10);X.stroke();
+ // 头 + 耳朵
+ X.beginPath();X.arc(0,-6,38,0,Math.PI*2);X.fill();
+ X.beginPath();X.moveTo(-34,-20);X.lineTo(-30,-62);X.lineTo(-8,-38);X.closePath();X.fill();
+ X.beginPath();X.moveTo(34,-20);X.lineTo(30,-62);X.lineTo(8,-38);X.closePath();X.fill();
+ // 眼睛 + 胡子
+ X.fillStyle=PAPER;X.beginPath();X.ellipse(-13,-8,5,8,0,0,Math.PI*2);X.ellipse(13,-8,5,8,0,0,Math.PI*2);X.fill();
+ X.strokeStyle=PAPER;X.lineWidth=2.5;X.beginPath();
+ for(const d of [-1,1]){X.moveTo(d*14,8);X.lineTo(d*46,2);X.moveTo(d*14,13);X.lineTo(d*46,16);}X.stroke();X.restore();}
+function dog(x,y,s,col=MUTE,alpha=1){if(alpha<=0)return;X.save();X.globalAlpha*=alpha;X.translate(x,y);X.scale(s,s);X.fillStyle=col;
+ X.beginPath();X.ellipse(0,52,46,32,0,0,Math.PI*2);X.fill();X.beginPath();X.arc(0,-6,36,0,Math.PI*2);X.fill();
+ X.beginPath();X.ellipse(-36,0,13,30,0.3,0,Math.PI*2);X.ellipse(36,0,13,30,-0.3,0,Math.PI*2);X.fill();
+ X.fillStyle=PAPER;X.beginPath();X.arc(-12,-10,5,0,Math.PI*2);X.arc(12,-10,5,0,Math.PI*2);X.fill();
+ X.beginPath();X.ellipse(0,10,9,6,0,0,Math.PI*2);X.fill();X.restore();}
+function cup(x,y,s,col=MUTE,alpha=1){if(alpha<=0)return;X.save();X.globalAlpha*=alpha;X.translate(x,y);X.scale(s,s);X.fillStyle=col;
+ X.beginPath();X.roundRect(-36,-30,62,84,10);X.fill();X.strokeStyle=col;X.lineWidth=10;X.beginPath();X.arc(30,10,20,-Math.PI/2,Math.PI/2);X.stroke();
+ X.strokeStyle=col;X.lineWidth=5;X.lineCap='round';for(const dx of [-16,4]){X.beginPath();X.moveTo(dx,-44);X.quadraticCurveTo(dx+10,-58,dx,-72);X.stroke();}X.restore();}
+function ball(x,y,s,col=MUTE,alpha=1){if(alpha<=0)return;X.save();X.globalAlpha*=alpha;X.translate(x,y);X.scale(s,s);X.fillStyle=col;
+ X.beginPath();X.arc(0,20,48,0,Math.PI*2);X.fill();X.strokeStyle=PAPER;X.lineWidth=4;X.beginPath();X.arc(0,20,48,-0.3,Math.PI+0.3,true);X.stroke();
+ X.beginPath();X.moveTo(0,-28);X.lineTo(0,68);X.stroke();X.restore();}
+function sofa(x,y,s,col=MUTE,alpha=1){if(alpha<=0)return;X.save();X.globalAlpha*=alpha;X.translate(x,y);X.scale(s,s);X.fillStyle=SOFT;X.strokeStyle=col;X.lineWidth=4;
+ X.beginPath();X.roundRect(-70,-30,140,62,14);X.fill();X.stroke();                // 靠背
+ X.beginPath();X.roundRect(-80,20,160,40,12);X.fill();X.stroke();                  // 坐垫
+ X.beginPath();X.roundRect(-92,0,26,62,10);X.roundRect(66,0,26,62,10);X.fill();X.stroke();
+ X.lineWidth=6;X.lineCap='round';X.beginPath();X.moveTo(-70,62);X.lineTo(-70,78);X.moveTo(70,62);X.lineTo(70,78);X.stroke();X.restore();}
+// 一张带标签的训练图
+function tile(x,y,w,kind,lab,on,alpha=1,withSofa=false){if(alpha<=0)return;X.save();X.globalAlpha*=alpha;
+ X.fillStyle=CARD;X.beginPath();X.roundRect(x-w/2,y-w/2,w,w,14);X.fill();X.lineWidth=3;X.strokeStyle=on?RED:SOFT;X.stroke();
+ const s=w/230;
+ if(withSofa){sofa(x,y+w*0.18,s*1.15,MUTE);if(kind==='cat')cat(x,y-w*0.1,s*0.95,INK);}
+ else if(kind==='cat')cat(x-s*10,y-w*0.06,s*1.15,INK);else if(kind==='dog')dog(x,y-w*0.08,s*1.15,MUTE);else if(kind==='cup')cup(x,y-w*0.04,s*1.15,MUTE);else if(kind==='ball')ball(x,y-w*0.1,s*1.05,MUTE);
+ X.restore();
+ if(lab)tag(lab,x,y+w/2+4,on?RED:MUTE,on,Math.round(w*0.15),alpha);}
+function book(x,y,s,alpha){if(alpha<=0)return;X.save();X.globalAlpha*=alpha;X.translate(x,y);X.scale(s,s);
+ X.fillStyle=SOFT;X.beginPath();X.roundRect(-150,-190,300,380,16);X.fill();X.fillStyle=RED;X.fillRect(-150,-190,26,380);
+ X.fillStyle=INK;X.font=`900 50px ${SERIF}`;X.textAlign='center';X.fillText('猫的',16,-70);X.fillText('说明书',16,-6);
+ X.strokeStyle=MUTE;X.lineWidth=4;for(let i=0;i<4;i++){X.beginPath();X.moveTo(-70,50+i*32);X.lineTo(110-i%2*40,50+i*32);X.stroke();}X.restore();VIS.push('猫的说明书');}
+
+// ================= 开场：说明书？→ 指着猫看 → 机器学习 =================
+function hook(t){
+ const out=eio(P(t,E('L03')+0.1,S('L04')+0.35));if(out>=1)return;
+ X.save();X.globalAlpha=1-out;X.translate(0,-out*160);
+ // L01 说明书 → 不会
+ const bk=eo(P(t,S('L01')+0.1,S('L01')+0.6)),bkOut=eio(P(t,S('L02')-0.1,S('L02')+0.4));
+ if(bkOut<1){X.save();X.globalAlpha*=1-bkOut;
+  text('教小孩认猫',500,560+(1-bk)*20,56,INK,SERIF,'center',900,bk);
+  book(500,860+(1-bk)*30,1,bk);
+  cross(500,860,120,P(t,at('L01','？')+0.05,at('L01','？')+0.45));
+  const no=eo(P(t,at('L01','？')+0.15,at('L01','？')+0.5));text('不会',500,1150,64,RED,SERIF,'center',900,no);
+  X.restore();}
+ // L02 一只一只猫：这是猫
+ const kinds=['cat','cat','cat'],t0=S('L02')+0.3,tc=at('L02','：');
+ if(t>=S('L02')-0.1&&t<E('L03')+0.5){
+  const many=eio(P(t,at('L02','。')+0.1,at('L02','，')+0.3)),up=eio(P(t,S('L03')-0.1,S('L03')+0.5));
+  X.save();X.globalAlpha*=1-up;X.translate(0,-up*150);
+  kinds.forEach((k,i)=>{const e=spring(t-(t0+i*0.45));if(e<=0)return;const x=lerp(260+i*240,230+i*270,many);
+   X.save();X.translate(x,760);X.scale(cl(e,0,1.1)*(1-many*0.18),cl(e,0,1.1)*(1-many*0.18));tile(0,0,200,k,t>=tc?'这是猫':'',true,cl(e*2));X.restore();});
+  // 看多了：后面铺满小卡片
+  if(many>0){for(let r=0;r<2;r++)for(let c=0;c<5;c++){const i=r*5+c,e=eo(cl(many*3-i*0.12));if(e<=0)continue;
+   tile(180+c*160,990+r*140,120,i%4===3?'dog':'cat','',false,e*0.55);}
+   const ok=eo(P(t,at('L02','，')+0.3,E('L02')));if(ok>0){mixed([['自己就',INK],['认得了',RED]],500,600,56,SERIF,900,ok);}}
+  X.restore();}
+ // L03 机器学习
+ const big=eo(P(t,S('L03')+0.15,S('L03')+0.65));
+ if(big>0){text('机器学习',500,840+(1-big)*30,150,RED,SERIF,'center',900,big);
+  const k=eo(P(t,at('L03','，'),at('L03','，')+0.4));mixed([['让电脑',INK],['也这样学',RED]],500,960,56,SERIF,900,k,(1-k)*20);}
+ X.restore();
+}
+// ================= 方法标题 =================
+function title(t){
+ const a=S('L04'),i=eo(P(t,a,a+0.6)),o=eio(P(t,S('L05')-0.25,S('L05')+0.35));if(i<=0||o>=1)return;
+ X.save();X.globalAlpha=i*(1-o);
+ text('今天的方法',500,620+(1-i)*30,44,MUTE,SANS,'center',500);
+ text('费曼学习法',500,790+(1-i)*30,130,INK,SERIF,'center',900);
+ const f=eo(P(t,at('L04','，')+0.2,at('L04','，')+0.7));mixed([['四步，把',RED],['机器学习',RED],['讲透',RED]],500,930+(1-f)*24,56,SERIF,700,f);
+ X.restore();
+}
+// ================= 四步进度条 =================
+const STEPS=['一 选概念','二 讲给孩子','三 找卡点','四 简化'];
+function tracker(t){
+ const a0=at('L04','，')+0.1,enter=[0,0.35,0.7,1.05].map(d=>a0+d);
+ let act=-1;if(t>=S('L05'))act=0;if(t>=S('L06'))act=1;if(t>=S('L13'))act=2;if(t>=S('L17'))act=3;if(t>=A.end)act=4;
+ const xs=[175,385,595,805],y=292;
+ for(let i=0;i<4;i++){const e=eo(P(t,enter[i],enter[i]+0.35))*(1-eio(P(t,A.end+0.3,A.end+0.9)));if(e<=0)continue;
+  X.save();X.globalAlpha=e;X.translate(0,(1-e)*-30);
+  const w=198,h=62;X.beginPath();X.roundRect(xs[i]-w/2,y-h/2,w,h,h/2);
+  const done=i<act,on=i===act;
+  if(on){X.fillStyle=RED;X.fill();}else{X.fillStyle=PAPER;X.fill();X.lineWidth=3;X.strokeStyle=done?INK:SOFT;X.stroke();}
+  X.font=`700 28px ${SANS}`;X.textAlign='center';X.textBaseline='middle';X.fillStyle=on?CARD:(done?INK:MUTE);
+  X.fillText(done?'✓'+STEPS[i].slice(1):STEPS[i],xs[i],y+2);X.restore();VIS.push(STEPS[i]);}
+}
+// ================= 费曼卡片 =================
+function card(t){
+ const s2=S('L05'),ci=eio(P(t,s2-0.15,s2+0.75)),co=eio(P(t,A.end,A.end+0.7));if(ci<=0||co>=1)return;
+ const x0=lerp(320,130,ci),x1=lerp(680,870,ci),y0=lerp(720,380,ci)-co*220,y1=lerp(900,1205,ci)-co*220;
+ X.save();X.globalAlpha=1-co;
+ const z=1+0.035*eio(P(t,s2+1,S('L17')))-0.02*eio(P(t,S('L17'),S('L19')));X.translate(500,800);X.scale(z,z);X.translate(-500,-800);
+ X.fillStyle='rgba(0,0,0,0.45)';X.beginPath();X.roundRect(x0+10,y0+14,x1-x0,y1-y0,22);X.fill();
+ X.fillStyle=CARD;X.beginPath();X.roundRect(x0,y0,x1-x0,y1-y0,22);X.fill();X.lineWidth=3;X.strokeStyle=SOFT;X.stroke();
+ if(ci<0.98){X.restore();return;}
+ X.translate(0,-co*220);
+ text('费曼卡片 No.05 · B7.2',170,440,30,MUTE,SANS,'left',500);
+ text('作者自我认知',830,440,30,MUTE,SANS,'right',500);
+ X.strokeStyle='#1E232B';X.lineWidth=2;for(let y=560;y<1190;y+=70){X.beginPath();X.moveTo(160,y);X.lineTo(840,y);X.stroke();}
+ text('概念',170,512,36,INK,SANS,'left',700);
+ X.strokeStyle=INK;X.lineWidth=3;X.beginPath();X.moveTo(160,535);X.lineTo(840,535);X.stroke();
+ const wt=at('L05','：'),w=P(t,wt,wt+1.1);
+ if(w>0){X.save();X.beginPath();X.rect(250,440,eo(w)*420,110);X.clip();mixed([['机器学习',RED]],445,522,70,SERIF,900);X.restore();}
+ const hint=env(t,s2+0.6,wt);if(hint.a>0)text('↑ 写在最上方',540,512+hint.dy,34,MUTE,SANS,'left',500,hint.a);
+ body(t);
+ X.restore();
+}
+function label(t,a,b,segs,y=618,size=48){const e=env(t,a,b);if(e.a>0)mixed(segs,500,y,size,SERIF,700,e.a,e.dy);}
+function person(x,y,s,col,alpha=1,arm=0){X.save();X.globalAlpha*=alpha;X.translate(x,y);X.scale(s,s);X.fillStyle=col;
+ X.beginPath();X.arc(0,-70,48,0,Math.PI*2);X.fill();X.beginPath();X.roundRect(-60,-10,120,150,40);X.fill();
+ X.strokeStyle=col;X.lineWidth=18;X.lineCap='round';
+ X.beginPath();X.moveTo(-52,20);X.lineTo(-100,lerp(110,-30,arm));X.moveTo(52,20);X.lineTo(100,lerp(110,-30,arm));X.stroke();
+ X.beginPath();X.moveTo(-28,130);X.lineTo(-36,230);X.moveTo(28,130);X.lineTo(36,230);X.stroke();X.restore();}
+function cross(x,y,s,k,col=RED){if(k<=0)return;stroke([[x-s,y-s],[x+s,y+s]],eo(cl(k*2)),8,col);stroke([[x+s,y-s],[x-s,y+s]],eo(cl(k*2-1)),8,col);}
+function check(x,y,s,k){stroke([[x-s,y],[x-s*0.3,y+s*0.7],[x+s,y-s*0.8]],k,9,RED);}
+// 显示器（电脑）
+function monitor(x,y,s,col=INK,alpha=1,face=''){if(alpha<=0)return;X.save();X.globalAlpha*=alpha;X.translate(x,y);X.scale(s,s);
+ X.fillStyle=SOFT;X.strokeStyle=col;X.lineWidth=5;X.beginPath();X.roundRect(-90,-70,180,130,14);X.fill();X.stroke();
+ X.beginPath();X.moveTo(-26,60);X.lineTo(-36,92);X.lineTo(36,92);X.lineTo(26,60);X.stroke();
+ if(face){X.fillStyle=col;X.font=`900 44px ${SANS}`;X.textAlign='center';X.textBaseline='middle';X.fillText(face,0,-4);}X.restore();}
+const fmt=n=>Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g,',');
+function body(t){
+ // 第一步
+ const s1=env(t,S('L05')+0.9,S('L06'));if(s1.a>0)text('一张纸，只写一个概念',500,860+s1.dy,44,MUTE,SERIF,'center',700,s1.a);
+ // 第二步：孩子 + 划掉术语
+ const s2=env(t,S('L06')+0.2,S('L07')+0.1);
+ if(s2.a>0){X.save();X.globalAlpha*=s2.a;X.translate(0,s2.dy);
+  person(330,880,1,INK);tag('十二岁',330,1150,RED,true,32,1);
+  const t0=at('L06','，');
+  ['神经网络','梯度下降','损失函数'].forEach((wd,i)=>{const yy=760+i*130,e=eo(P(t,t0+i*0.25,t0+0.4+i*0.25));if(e>0){tag(wd,640,yy,MUTE,false,36,e);
+   const sk=eo(P(t,at('L06','用')+0.1+i*0.25,at('L06','用')+0.35+i*0.25));if(sk>0)stroke([[545,yy+6],[735,yy-6]],sk,6,RED);}});
+  X.restore();}
+ label(t,S('L06')+0.2,S('L07')+0.1,[['不许用',INK],['术语',RED]]);
+ // L07 以前：照规则做
+ const r7=env(t,S('L07'),S('L08')+0.05);
+ if(r7.a>0){X.save();X.globalAlpha*=r7.a;X.translate(0,r7.dy);
+  label(t,S('L07'),S('L08')+0.05,[['以前的电脑：',INK],['照规则做',RED]]);
+  const tr=at('L07','：');
+  ['规则一：如果……就……','规则二：如果……就……','规则三：如果……就……'].forEach((r,i)=>{const e=eo(P(t,tr+i*0.35,tr+0.35+i*0.35));if(e<=0)return;
+   tag(r,370,770+i*120,i===0?INK:MUTE,false,30,e);
+   const a=eo(P(t,tr+0.2+i*0.35,tr+0.55+i*0.35));stroke([[560,770+i*120],[600,770+i*120]],a,5,RED);if(a>0.9)arrowHead(606,770+i*120,0,12,RED);});
+  const m=spring(t-(tr+0.3));if(m>0){X.save();X.translate(710,890);X.scale(cl(m,0,1.1),cl(m,0,1.1));monitor(0,0,1,INK,cl(m*2),'照做');X.restore();}
+  const n=eo(P(t,at('L07','，',2),at('L07','，',2)+0.4));mixed([['人写一条，',INK],['它做一条',RED]],500,1130,46,SERIF,900,n);
+  X.restore();}
+ // L08 猫是什么样子？规则写不出来
+ const r8=env(t,S('L08'),S('L09')+0.05);
+ if(r8.a>0){X.save();X.globalAlpha*=r8.a;X.translate(0,r8.dy);
+  label(t,S('L08'),S('L09')+0.05,[['有些事，',INK],['规则写不出来',RED]]);
+  const q=eo(P(t,at('L08','，',2),at('L08','，',2)+0.4));text('给猫写规则？',500,730,48,INK,SERIF,'center',900,q);
+  const R=[['有尖耳朵','狐狸也有'],['有胡子','老鼠也有'],['四条腿','狗也有']],tq=at('L08','？')-0.2;
+  R.forEach((r,i)=>{const e=eo(P(t,tq-0.9+i*0.35,tq-0.55+i*0.35));if(e<=0)return;const y=830+i*100;
+   tag(r[0],330,y,INK,false,34,e);const b=eo(P(t,tq+0.1+i*0.25,tq+0.45+i*0.25));text('← '+r[1],520,y+12,34,MUTE,SANS,'left',700,b);
+   if(b>0)stroke([[250,y+4],[410,y-4]],b,5,RED);});
+  const no=spring(t-(at('L08','？')+0.3));if(no>0){X.save();X.translate(500,1150);X.scale(cl(no,0,1.15),cl(no,0,1.15));tag('说不清',0,0,RED,true,44,cl(no*2));X.restore();}
+  X.restore();}
+ // L09 不写规则，给例子
+ const r9=env(t,S('L09'),S('L10')+0.05);
+ if(r9.a>0){X.save();X.globalAlpha*=r9.a;X.translate(0,r9.dy);
+  label(t,S('L09'),S('L10')+0.05,[['机器学习',RED],['换了个办法',INK]]);
+  const a=eo(P(t,at('L09','：'),at('L09','：')+0.35));if(a>0){tag('写规则',500,800,MUTE,false,56,a);
+   stroke([[380,812],[620,788]],P(t,at('L09','：')+0.4,at('L09','，')),8,RED);}
+  const k=spring(t-at('L09','，'));
+  if(k>0){stroke([[500,870],[500,930]],cl(k),5,RED);arrowHead(500,940,Math.PI/2,14,RED);
+   X.save();X.translate(500,1030);X.scale(cl(k,0,1.12),cl(k,0,1.12));tag('给例子',0,0,RED,true,64,cl(k*2));X.restore();}
+  X.restore();}
+ // L10 一万张带标签的图
+ const r10=env(t,S('L10'),S('L11')+0.05);
+ if(r10.a>0){X.save();X.globalAlpha*=r10.a;X.translate(0,r10.dy);
+  const G=['cat','dog','cat','cup','cat','ball','cat','dog','cat'],tg=S('L10')+0.15,tl=at('L10','：');
+  G.forEach((k,i)=>{const r=Math.floor(i/3),c=i%3,e=spring(t-(tg+i*0.09));if(e<=0)return;
+   const lb=t>=tl+i*0.12?(k==='cat'?'猫':'不是猫'):'';
+   X.save();X.translate(270+c*230,720+r*185);X.scale(cl(e,0,1.1),cl(e,0,1.1));tile(0,0,150,k,lb,k==='cat',cl(e*2));X.restore();});
+  const n=eo(P(t,at('L10','，'),at('L10','，')+0.6));
+  if(n>0){X.save();X.globalAlpha*=n;X.fillStyle=RED;X.beginPath();X.roundRect(630,1060,240,74,37);X.fill();X.restore();
+   text('× 一万张',750,1110,40,CARD,SANS,'center',900,n);}
+  label(t,S('L10'),S('L11')+0.05,[['每张都',INK],['标好答案',RED]],618,44);
+  X.restore();}
+ // L11 猜 → 错 → 改一点点（循环）
+ const r11=env(t,S('L11'),S('L12')+0.05);
+ if(r11.a>0){X.save();X.globalAlpha*=r11.a;X.translate(0,r11.dy);
+  label(t,S('L11'),S('L12')+0.05,[['猜，错了就',INK],['改一点点',RED]]);
+  tile(290,830,190,'cat','',true,1);
+  const c0=at('L11','。')-0.2,per=(E('L11')-c0)/3,ci=cl(Math.floor((t-c0)/per),0,2),ph=(t-c0-ci*per)/per;
+  const guess=['猜：杯子','猜：狗','猜：猫'][ci],right=ci===2;
+  if(t>=c0){bubble(650,760,330,96,1,SOFT,true);text(guess,650,776,42,INK,SANS,'center',700);
+   const r=eo(P(ph,0.35,0.6));if(right){check(780,860,26,r);}else cross(780,860,24,r);
+   // 旋钮：每错一次转一点
+   const ang=-0.9+0.45*(ci+(right?0:eio(P(ph,0.6,0.95))));
+   X.save();X.translate(650,1000);X.beginPath();X.arc(0,0,64,0,Math.PI*2);X.fillStyle=CARD;X.fill();X.lineWidth=5;X.strokeStyle=INK;X.stroke();
+   for(let k=-4;k<=4;k++){const a=-Math.PI/2+k*0.3;X.beginPath();X.moveTo(Math.cos(a)*74,Math.sin(a)*74);X.lineTo(Math.cos(a)*86,Math.sin(a)*86);X.lineWidth=3;X.strokeStyle=MUTE;X.stroke();}
+   X.rotate(ang);X.beginPath();X.moveTo(0,0);X.lineTo(0,-52);X.lineWidth=8;X.lineCap='round';X.strokeStyle=RED;X.stroke();X.restore();
+   text('改一点点',650,1120,32,MUTE,SANS,'center',700,1);}
+  X.restore();}
+ // L12 几百万次 → 模型
+ const r12=env(t,S('L12'),S('L13')+0.05);
+ if(r12.a>0){X.save();X.globalAlpha*=r12.a;X.translate(0,r12.dy);
+  const cnt=Math.pow(eio(P(t,S('L12')+0.1,at('L12','。'))),3)*3000000;
+  text('改了',500,720,40,MUTE,SANS,'center',700,1);
+  text(fmt(Math.max(1,cnt))+' 次',500,830,96,RED,SERIF,'center',900,1);
+  text('（次数仅为示意）',500,880,26,MUTE,SANS,'center',500,eo(P(t,S('L12')+0.3,S('L12')+0.6)));
+  const m=spring(t-at('L12','，',2));
+  if(m>0){X.save();X.translate(500,1030);X.scale(cl(m,0,1.12),cl(m,0,1.12));X.globalAlpha*=cl(m*2);
+   X.shadowColor=RED;X.shadowBlur=30*cl(m);X.fillStyle=RED;X.beginPath();X.roundRect(-150,-62,300,124,24);X.fill();X.shadowBlur=0;
+   X.fillStyle=CARD;X.font=`900 64px ${SERIF}`;X.textAlign='center';X.textBaseline='middle';X.fillText('模型',0,4);X.restore();VIS.push('模型');
+   text('＝ 练好的那个东西',500,1140,32,MUTE,SANS,'center',700,cl(m));}
+  X.restore();}
+ label(t,S('L12'),S('L13')+0.05,[['自己',INK],['摸出门道',RED]]);
+ // 第三步：卡点
+ const s13=env(t,S('L13'),S('L14'));
+ if(s13.a>0){label(t,S('L13'),S('L14'),[['卡住的地方',INK]]);
+  const k=spring(t-at('L13','：'));if(k>0){X.save();X.globalAlpha*=s13.a;X.translate(500,880);X.scale(k,k);
+   X.beginPath();X.arc(0,0,195,0,Math.PI*2);X.lineWidth=6;X.setLineDash([16,12]);X.strokeStyle=RED;X.stroke();X.restore();
+   text('学会了，',500,868,52,RED,SERIF,'center',900,s13.a*cl(k));text('就是真懂了？',500,944,52,RED,SERIF,'center',900,s13.a*cl(k));}}
+ // L14 只是例子里的规律
+ const r14=env(t,S('L14'),S('L15')+0.05);
+ if(r14.a>0){X.save();X.globalAlpha*=r14.a;X.translate(0,r14.dy);
+  label(t,S('L14'),S('L15')+0.05,[['其实',INK],['不是',RED]]);
+  const a=eo(P(t,at('L14','。'),at('L14','。')+0.4));
+  ['cat','cat','cat'].forEach((k,i)=>tile(300+i*200,800,150,k,'',false,a));
+  const b=eo(P(t,at('L14','，')+0.1,at('L14','，')+0.5));
+  mixed([['它学到的，只是',INK]],500,990,44,SERIF,900,b);mixed([['例子里的规律',RED]],500,1080,64,SERIF,900,b);
+  X.restore();}
+ // L15 沙发猫
+ const r15=env(t,S('L15'),S('L16')+0.05);
+ if(r15.a>0){X.save();X.globalAlpha*=r15.a;X.translate(0,r15.dy);
+  label(t,S('L15'),S('L16')+0.05,[['猫，全在',INK],['沙发上',RED]]);
+  const t1=at('L15','，'),t3=at('L15','，',3);
+  [0,1,2].forEach(i=>{const e=spring(t-(S('L15')+0.3+i*0.2));if(e>0){X.save();X.translate(240+i*175,790);X.scale(cl(e,0,1.1),cl(e,0,1.1));tile(0,0,150,'cat','猫',true,cl(e*2),true);X.restore();}});
+  // 空沙发 → 它说「猫！」
+  const s=spring(t-(at('L15','，',2)+0.1));
+  if(s>0){X.save();X.translate(500,1010);X.scale(cl(s,0,1.1),cl(s,0,1.1));tile(0,0,170,'none','',false,cl(s*2),true);X.restore();
+   const say=eo(P(t,t3,t3+0.35));if(say>0){bubble(760,960,200,90,say,SOFT,true);text('猫！',760,976,46,INK,SANS,'center',900,say);}
+   cross(760,960,40,P(t,E('L15')-0.4,E('L15')+0.1));
+   text('沙发 ＝ 猫的一部分？',500,1150,36,RED,SANS,'center',700,eo(P(t,t3+0.4,t3+0.8)));}
+  X.restore();}
+ // L16 例子歪了，就学歪了
+ const r16=env(t,S('L16'),S('L17')+0.05);
+ if(r16.a>0){X.save();X.globalAlpha*=r16.a;X.translate(0,r16.dy);
+  const a=eo(P(t,S('L16')+0.1,S('L16')+0.5)),b=eo(P(t,at('L16','，')+0.1,at('L16','，')+0.5));
+  X.save();X.translate(330,800);X.rotate(-0.12*a);tag('例子歪了',0,0,INK,false,44,a);X.restore();
+  stroke([[450,800],[530,800]],b,5,RED);if(b>0.9)arrowHead(540,800,0,13,RED);
+  X.save();X.translate(670,800);X.rotate(0.12*b);tag('学歪了',0,0,RED,true,44,b);X.restore();
+  const c=eo(P(t,at('L16','。')+0.1,at('L16','。')+0.5)),d=eo(P(t,at('L16','，',2),at('L16','，',2)+0.4));
+  text('更重要的是',500,950,36,MUTE,SANS,'center',700,c);
+  if(c>0){X.save();X.translate(330,1060);X.scale(lerp(0.8,1.15,d),lerp(0.8,1.15,d));tag('喂它什么',0,0,RED,true,48,c);X.restore();}
+  text('＞',500,1076,56,INK,SERIF,'center',900,d);tag('它多聪明',680,1060,MUTE,false,40,d);
+  X.restore();}
+ label(t,S('L16'),S('L17')+0.05,[['喂什么，',RED],['学什么',INK]]);
+ // 第四步：一句话
+ const os=env(t,at('L17','：')-0.1,S('L18')+0.1,0.3,0.3);
+ label(t,S('L17'),at('L17','：'),[['简化成',INK],['一句话',RED]]);
+ if(os.a>0){const s=lerp(1.2,1,eo(P(t,at('L17','：'),at('L17','：')+0.3)));X.save();X.translate(500,800);X.scale(s,s);X.translate(-500,-800);
+  text('机器学习',500,760+os.dy,128,RED,SERIF,'center',900,os.a);
+  mixed([['就是让电脑',INK]],500,890,60,SERIF,900,os.a*eo(P(t,at('L17','，',2)-0.2,at('L17','，',2)+0.3)),os.dy);
+  mixed([['从',INK],['例子',RED],['里',INK]],500,990,60,SERIF,900,os.a*eo(P(t,at('L17','从')-0.1,at('L17','从')+0.3)),os.dy);
+  mixed([['自己找规律',RED]],500,1105,80,SERIF,900,os.a*eo(P(t,at('L17','里')+0.05,at('L17','里')+0.45)),os.dy);X.restore();}
+ // L18 树枝：根 → B → B7 → B7.2（亮），旁边 B7.1 兄弟，往上一层虚线
+ const m=env(t,S('L18'),S('L19')+0.1);
+ if(m.a>0){X.save();X.globalAlpha*=m.a;
+  text('这张卡挂在树上的位置',500,600,40,MUTE,SERIF,'center',700);
+  const N=[['01 三观（根）',500,1150],['B 世界怎么运转',500,1040],['B7 科技与变化',500,930],['B7.1 Token',300,820],['B7.2 机器学习',650,820]];
+  const t0=S('L18')+0.2,tb=at('L18','：');
+  for(let i=0;i<5;i++){const ti=t0+Math.min(i,3)*0.35+(i===4?0.25:0),e=eo(P(t,ti,ti+0.4));if(e<=0)continue;
+   const p=i===4?2:i-1;if(i>0){stroke([[N[p][1],N[p][2]-30],[N[i][1],N[i][2]+30]],e,5,i===4?RED:(i===3?MUTE:INK));}
+   tag(N[i][0],N[i][1],N[i][2],i===4?RED:(i===3?MUTE:INK),i===4,i===4?36:30,e);}
+  const nx=eo(P(t,tb,tb+0.5));if(nx>0){X.save();X.globalAlpha*=nx;X.setLineDash([10,10]);X.strokeStyle=RED;X.lineWidth=4;X.beginPath();X.moveTo(650,790);X.lineTo(650,735);X.stroke();X.restore();
+   const lbl='模型怎么一点点改对？';X.save();X.globalAlpha*=nx;X.font=`700 30px ${SANS}`;const w=X.measureText(lbl).width+40;X.beginPath();X.roundRect(650-w/2,684,w,52,26);X.setLineDash([10,8]);X.lineWidth=3;X.strokeStyle=RED;X.stroke();
+   X.fillStyle=RED;X.textAlign='center';X.textBaseline='middle';X.fillText(lbl,650,711);X.restore();VIS.push(lbl);
+   text('下一层',650,668,26,MUTE,SANS,'center',500,nx);}
+  X.restore();}
+ // L19–L20 今晚想一想
+ const f=env(t,S('L19'),A.end+0.1);
+ if(f.a>0){X.save();X.globalAlpha*=f.a;X.translate(0,f.dy);
+  mixed([['今晚',INK],['想一想',RED]],500,650,56,SERIF,900,1);
+  const q=eo(P(t,at('L19','：'),at('L19','：')+0.4));mixed([['你哪个本事，是',INK],['看例子',RED],['学会的？',INK]],500,750,44,SERIF,900,q);
+  ['骑自行车','说母语','看人脸色'].forEach((s,i)=>{const k=spring(t-(at('L19','，')+0.1+i*0.3));if(k>0){X.save();X.translate(260+i*240,870);X.scale(cl(k,0,1.1),cl(k,0,1.1));tag(s,0,0,i===1?RED:INK,false,36,cl(k*2));X.restore();}});
+  const nb=eo(P(t,at('L19','，',2),at('L19','，',2)+0.4));text('而不是背规则背会的',500,990,40,MUTE,SERIF,'center',700,nb);
+  if(nb>0)stroke([[330,978],[670,978]],eo(P(t,at('L19','，',2)+0.4,E('L19'))),4,MUTE);
+  const cm=spring(t-S('L20'));if(cm>0){X.save();X.translate(500,1120);X.scale(cl(cm),cl(cm));X.beginPath();X.roundRect(-190,-40,380,80,40);X.fillStyle=SOFT;X.fill();
+   X.beginPath();X.moveTo(-120,36);X.lineTo(-150,64);X.lineTo(-90,38);X.fill();X.restore();text('评论区告诉我',500,1132,36,INK,SANS,'center',700,cl(cm*2));}
+  X.restore();}
+}
+// ================= 片尾 =================
+function endcard(t){
+ const e=(d)=>eo(P(t,A.end+0.5+d,A.end+1.0+d));
+ if(t<A.end+0.5)return;
+ const a=e(0),b=e(0.25),c=e(0.6),d=e(0.9);
+ const seed=(window.META&&window.META.music_seed)?' · 种子 '+window.META.music_seed:'';
+ text('费曼学习法卡片',500,600+(1-a)*30,92,INK,SERIF,'center',900,a);
+ text('05 · 机器学习',500,700+(1-b)*30,60,RED,SERIF,'center',700,b);
+ text('B7.2 · 上级 B7 科技与变化',500,752+(1-b)*30,28,MUTE,SANS,'center',500,b);
+ if(b>0){X.save();X.globalAlpha=b;X.fillStyle=SOFT;X.fillRect(300,785,400,3);X.restore();}
+ text('出处：作者自我认知（Shaomanman）',500,870+(1-c)*24,38,INK,SANS,'center',500,c);
+ text('许可：CC BY 4.0（署名 4.0 国际）',500,935+(1-c)*24,38,INK,SANS,'center',500,c);
+ text('creativecommons.org/licenses/by/4.0',500,992+(1-c)*24,28,MUTE,SANS,'center',500,c);
+ text('配乐：ACE-Step 1.5 本地生成（MIT）'+seed,500,1050+(1-c)*24,26,MUTE,SANS,'center',500,c);
+ text('配音：Qwen3-TTS 本地生成（参考 ElevenLabs Brian 音色）',500,1090+(1-c)*24,26,MUTE,SANS,'center',500,c);
+ text('下一张卡片见',500,1190+(1-d)*24,58,RED,SERIF,'center',900,d);
+}
+// ================= 字幕（1300–1480px，x 60–920） =================
+function subs(t){
+ for(const c of CUES){if(t<c[0]||t>=c[1])continue;
+  const lines=c[2].split('\n');const e=eo(P(t,c[0],c[0]+0.15));
+  let size=50;X.font=`700 ${size}px ${SANS}`;const mw=Math.max(...lines.map(l=>X.measureText(l).width));if(mw>840)size=Math.floor(50*840/mw);
+  const lh=lines.length>2?68:74,base=lines.length===1?1410:(lines.length===2?1374:1342);
+  lines.forEach((ln,i)=>{const y=base+i*lh+(1-e)*8;
+   const segs=[];let s=ln;while(s.length){let hit=null,idx=1e9;for(const k of KEY){const j=s.indexOf(k);if(j>=0&&j<idx){idx=j;hit=k;}}
+    if(!hit){segs.push([s,INK]);break;}if(idx>0)segs.push([s.slice(0,idx),INK]);segs.push([hit,RED]);s=s.slice(idx+hit.length);}
+   X.save();X.globalAlpha=e;X.font=`700 ${size}px ${SANS}`;X.textBaseline='alphabetic';
+   const W=segs.reduce((q,g)=>q+X.measureText(g[0]).width,0);let x=490-W/2;
+   for(const g of segs){X.lineWidth=10;X.strokeStyle=PAPER;X.lineJoin='round';X.strokeText(g[0],x,y);X.fillStyle=g[1];X.fillText(g[0],x,y);x+=X.measureText(g[0]).width;}
+   X.restore();});
+  VIS.push('SUB:'+c[2]);}
+}
+// ================= 音效事件 =================
+(function(){ev(S('L01')+0.1,'pop');ev(at('L01','？')+0.1,'strike');ev(at('L01','？')+0.35,'strike');
+ [0,1,2].forEach(i=>ev(S('L02')+0.3+i*0.45,'pop'));ev(at('L02','：'),'stamp');ev(at('L02','。')+0.1,'whoosh');ev(at('L02','，')+0.3,'chime');
+ ev(S('L03')+0.15,'stamp');
+ ev(S('L04')-0.1,'whoosh');[0,0.35,0.7,1.05].forEach(d=>ev(at('L04','，')+0.1+d,'tick'));
+ ev(S('L05')-0.15,'whoosh');ev(at('L05','：'),'pen');ev(S('L06'),'tick');[0.1,0.35,0.6].forEach(d=>ev(at('L06','用')+d,'strike'));
+ [0,1,2].forEach(i=>ev(at('L07','：')+i*0.35,'tick'));ev(at('L07','：')+0.3,'pop');
+ [0,1,2].forEach(i=>ev(at('L08','？')+0.1+i*0.25,'strike'));ev(at('L08','？')+0.3,'stamp');
+ ev(at('L09','：')+0.4,'strike');ev(at('L09','，'),'pop');
+ for(let i=0;i<9;i++)ev(S('L10')+0.15+i*0.09,'tick');ev(at('L10','，'),'whoosh');
+ {const c0=at('L11','。')-0.2,per=(E('L11')-c0)/3;for(let i=0;i<3;i++){ev(c0+i*per+0.02,'pop');ev(c0+i*per+per*0.4,i<2?'strike':'chime');}}
+ ev(S('L12')+0.1,'whoosh');ev(at('L12','，',2),'stamp');
+ ev(S('L13'),'tick');ev(at('L13','：'),'pop');ev(at('L14','。'),'whoosh');
+ [0,1,2].forEach(i=>ev(S('L15')+0.3+i*0.2,'pop'));ev(at('L15','，',2)+0.1,'drop');ev(at('L15','，',3),'pop');ev(E('L15')-0.4,'strike');
+ ev(S('L16')+0.1,'drop');ev(at('L16','，')+0.1,'drop');ev(at('L16','，',2),'stamp');
+ ev(S('L17'),'tick');ev(at('L17','：'),'stamp');ev(S('L18')+0.2,'whoosh');ev(at('L18','：'),'pen');
+ ev(S('L19'),'whoosh');[0,1,2].forEach(i=>ev(at('L19','，')+0.1+i*0.3,'pop'));ev(S('L20'),'pop');ev(A.end,'whoosh');ev(A.end+1.5,'chime');})();
+// ================= 颗粒 + 主渲染 =================
+let GRAIN=null;
+function makeGrain(){const g=document.createElement('canvas');g.width=g.height=256;const q=g.getContext('2d');const d=q.createImageData(256,256);
+ let s=12345;const r=()=>(s=(s*1103515245+12345)&0x7fffffff)/0x7fffffff;
+ for(let i=0;i<d.data.length;i+=4){const v=r()*255;d.data[i]=d.data[i+1]=d.data[i+2]=v;d.data[i+3]=7;}q.putImageData(d,0,0);GRAIN=X.createPattern(g,'repeat');}
+window.render=function(t){VIS=[];X.setTransform(1,0,0,1,0,0);X.globalAlpha=1;
+ const bg=X.createRadialGradient(500,760,80,500,860,1250);bg.addColorStop(0,'#171B22');bg.addColorStop(1,'#08090C');X.fillStyle=bg;X.fillRect(0,0,1080,1920);X.fillStyle=GRAIN;X.fillRect(0,0,1080,1920);
+ hook(t);title(t);card(t);tracker(t);endcard(t);subs(t);};
+window.TEXTS=function(t){render(t);return VIS.slice();};
+window.READY=false;
+Promise.all([document.fonts.load(`900 40px ${SERIF}`,'机器学习费曼'),document.fonts.load(`700 40px ${SERIF}`,'机器学习'),document.fonts.load(`500 40px ${SANS}`,'机器学习'),document.fonts.load(`700 40px ${SANS}`,'机器学习')])
+ .then(()=>{makeGrain();render(0);window.READY=true;});
+</script></body></html>

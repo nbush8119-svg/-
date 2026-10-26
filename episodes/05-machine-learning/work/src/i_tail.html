@@ -1,0 +1,13 @@
+// ================= 颗粒 + 主渲染 =================
+let GRAIN=null;
+function makeGrain(){const g=document.createElement('canvas');g.width=g.height=256;const q=g.getContext('2d');const d=q.createImageData(256,256);
+ let s=12345;const r=()=>(s=(s*1103515245+12345)&0x7fffffff)/0x7fffffff;
+ for(let i=0;i<d.data.length;i+=4){const v=r()*255;d.data[i]=d.data[i+1]=d.data[i+2]=v;d.data[i+3]=7;}q.putImageData(d,0,0);GRAIN=X.createPattern(g,'repeat');}
+window.render=function(t){VIS=[];X.setTransform(1,0,0,1,0,0);X.globalAlpha=1;
+ const bg=X.createRadialGradient(500,760,80,500,860,1250);bg.addColorStop(0,'#171B22');bg.addColorStop(1,'#08090C');X.fillStyle=bg;X.fillRect(0,0,1080,1920);X.fillStyle=GRAIN;X.fillRect(0,0,1080,1920);
+ hook(t);title(t);card(t);tracker(t);endcard(t);subs(t);};
+window.TEXTS=function(t){render(t);return VIS.slice();};
+window.READY=false;
+Promise.all([document.fonts.load(`900 40px ${SERIF}`,'Token词元费曼'),document.fonts.load(`700 40px ${SERIF}`,'Token词元'),document.fonts.load(`500 40px ${SANS}`,'Token词元'),document.fonts.load(`700 40px ${SANS}`,'Token词元')])
+ .then(()=>{makeGrain();render(0);window.READY=true;});
+</script></body></html>
